@@ -1,0 +1,56 @@
+scout-camp=/$PWD filter="*" {
+ LICENSE
+ LICENSE.txt
+ README.md
+ Rakefile
+ bin=bin {
+ }
+ data=data {
+ }
+ lib=lib {
+  scout-camp.rb
+  scout=scout {
+   terraform_dsl.rb
+   terraform_dsl=terraform_dsl {
+    deployment.rb
+    util.rb
+   }
+  }
+ }
+ share=share {
+  terraform=terraform {
+   aws=aws {
+    cluster=cluster{
+     main.tf
+     output.tf
+     variables.tf
+    }
+    provider=provider{
+     data.tf
+     output.tf
+    }
+    host=host{
+     locals.tf
+     main.tf
+     output.tf
+     variables.tf
+    }
+    bucket=bucket {
+     main.tf
+     output.tf
+     variables.tf
+    }
+    lambda=lambda {
+     main.tf
+     variables.tf
+    }
+   }
+  }
+ }
+ test=test {
+  test_helper.rb
+  scout=scout {
+   test_terraform_dsl.rb
+  }
+ }
+
