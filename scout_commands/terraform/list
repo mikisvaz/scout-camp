@@ -1,0 +1,36 @@
+#!/usr/bin/env ruby
+
+require 'scout'
+
+$0 = "scout #{$previous_commands.any? ? $previous_commands*" " + " " : "" }#{ File.basename(__FILE__) }" if $previous_commands
+
+options = SOPT.setup <<EOF
+
+List all deployments
+
+$ #{$0} [<options>] <filename>
+
+-h--help Print this help
+EOF
+if options[:help]
+  if defined? scout_usage
+    scout_usage 
+  else
+    puts SOPT.doc
+  end
+  exit 0
+end
+
+deployments = Scout.var.deployments.glob_all("*")
+
+deployments.each do |dir|
+  name = File.basename dir
+  deployment = TerraformDSL::Deployment.new dir
+  active = deployment.provisioned_elements.any?
+  
+  if active
+    puts Log.color(:title, name ) + "\t" + dir + "\t" + "Active" 
+  else
+    puts Log.color(:title, name) + "\t" + dir
+  end
+end

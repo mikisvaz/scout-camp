@@ -16,4 +16,8 @@ variable "timeout" {
   type = number
   default = 30
 }
-
+variable "environment_variables" {
+  type        = map(string)
+  description = "A map of environment variables to pass to the resource"
+  default     = {}
+}

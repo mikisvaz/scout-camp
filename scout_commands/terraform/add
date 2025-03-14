@@ -1,0 +1,78 @@
+#!/usr/bin/env ruby
+
+require 'scout'
+
+$0 = "scout #{$previous_commands.any? ? $previous_commands*" " + " " : "" }#{ File.basename(__FILE__) }" if $previous_commands
+
+options = SOPT.setup <<EOF
+
+Add a new deployment
+
+$ #{$0} [<options>] <name>
+
+-h--help Print this help
+-w--workflows* Workflows to provision
+EOF
+if options[:help]
+  if defined? scout_usage
+    scout_usage 
+  else
+    puts SOPT.doc
+  end
+  exit 0
+end
+
+name = ARGV.shift
+raise MissingParameterException, :name if name.nil?
+
+deployments = Scout.var.deployments.glob_all("*").collect(&:basename)
+raise "Deployment clash" if deployments.include? name
+dir =  Scout.var.deployments[name]
+
+IndiferentHash.add_defaults options, workflows: '', dependencies: 'scout-gear'
+
+workflows = options[:workflows].split(",")
+dependencies = options[:dependencies].split(",")
+
+code =<<-EOF
+def lambda_handler(event:, context:)
+  require 'scout/workflow'
+
+  wf = Workflow.require_workflow event["workflow"]
+  job = wf.job(event["task_name"], event["jobname"], event["inputs"])
+  id = job.short_path
+  id
+end
+EOF
+
+def lambda_package(dependencies, workflows, code)
+  TmpFile.with_path do |dir|
+    dir["lambda_function.rb"].write code
+    dir["Gemfile"].write "source 'https://rubygems.org'\n" + dependencies.collect{|d| "gem '#{d}'"}*"\n"
+    workflows.each do |workflow|
+      Open.mkdir dir[".scout"].workflows
+      Open.cp Scout.workflows[workflow], dir[".scout"].workflows[workflow]
+    end
+    Misc.in_dir dir do
+      `bundle config set path 'vendor/bundle'`
+      `bundle install`
+      `rm -Rf vendor/bundle/ruby/*/cache`
+      `rm -Rf vendor/bundle/ruby/*/gems/RubyInline*`
+      TmpFile.with_file nil, extension: :zip do |zip|
+        `zip -r "#{zip}" vendor/bundle lambda_function.rb .scout`
+        yield zip
+      end
+    end
+  end
+end
+
+require 'aws-sdk'
+lambda_package dependencies, workflows, code do |file|
+  terraform = TerraformDSL.new
+  filename = 'lambda_package.zip'
+  Open.cp file, dir[filename]
+  terraform.add :aws, :lambda, function_name: "ScoutJob", filename: filename, environment_variables: {HOME: '.'}
+  terraform.config dir
+end
+
+

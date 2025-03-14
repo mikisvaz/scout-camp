@@ -1,6 +1,6 @@
-require_relative '../workflow/step'
 require_relative 'ssh'
 require_relative 'sync'
+require 'scout/workflow/step'
 
 module OffsiteStep
 
