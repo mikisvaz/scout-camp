@@ -26,7 +26,14 @@ raise MissingParameterException, :name if name.nil?
 
 dir = Scout.var.deployments.glob_all(name).first
 
-deployment = TerraformDSL::Deployment.new dir
-deployment.destroy
+begin
+  deployment = TerraformDSL::Deployment.new dir
+  deployment.destroy
+rescue
+end
 
-Open.rm_rf dir if deployment.provisioned_elements.empty?
+if deployment.provisioned_elements.empty?
+  Open.rm_rf dir
+else
+  "Not removed"
+end
