@@ -9,6 +9,10 @@ module Open
   module S3
     extend Hook
 
+    def self.lock(*args, &block)
+      yield nil
+    end
+
     def self.is_s3?(uri)
       uri.start_with? 's3://'
     end
