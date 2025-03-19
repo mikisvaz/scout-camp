@@ -129,6 +129,11 @@ module Open
 
     self.singleton_class.alias_method :exist?, :exists?
   
+
+    def self.sensible_write(path, content = nil, options = {}, &block)
+      Open::S3.write(path, content)
+    end
+
   end
 end
 
