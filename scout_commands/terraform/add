@@ -12,6 +12,8 @@ $ #{$0} [<options>] <name>
 
 -h--help Print this help
 -w--workflows* Workflows to provision
+-w--dependencies* Workflows to provision
+-b--bucket* Bucket to connect
 EOF
 if options[:help]
   if defined? scout_usage
@@ -29,19 +31,27 @@ deployments = Scout.var.deployments.glob_all("*").collect(&:basename)
 raise "Deployment clash" if deployments.include? name
 dir =  Scout.var.deployments[name]
 
-IndiferentHash.add_defaults options, workflows: '', dependencies: 'scout-gear'
+IndiferentHash.add_defaults options, workflows: '', dependencies: 'scout-gear,scout-camp', bucket: 'scout.var'
 
 workflows = options[:workflows].split(",")
 dependencies = options[:dependencies].split(",")
 
-code =<<-EOF
+code =<<-'EOF'
 def lambda_handler(event:, context:)
-  require 'scout/workflow'
+  require 'scout'
+  Path.path_maps[:bucket] = "s3://#{ENV["AWS_BUCKET"]}/{TOPLEVEL}/{SUBPATH}"
+  Path.path_maps[:default] = :bucket
 
-  wf = Workflow.require_workflow event["workflow"]
-  job = wf.job(event["task_name"], event["jobname"], event["inputs"])
-  id = job.short_path
-  id
+  require 'scout/workflow'
+  require 'scout/aws/s3'
+
+  workflow, task_name, jobname, inputs = IndiferentHash.process_options event, 
+  :workflow, :task_name, :jobname, :inputs
+
+  wf = Workflow.require_workflow workflow
+
+  job = wf.job(task_name, jobname, inputs)
+  job.run
 end
 EOF
 
@@ -71,8 +81,13 @@ lambda_package dependencies, workflows, code do |file|
   terraform = TerraformDSL.new
   filename = 'lambda_package.zip'
   Open.cp file, dir[filename]
-  terraform.add :aws, :lambda, function_name: "ScoutJob", filename: filename, environment_variables: {HOME: '.'}
+
+  terraform.add :aws, :lambda, function_name: "#{name}Job", filename: filename, 
+    environment_variables: {
+      HOME: '.',
+      HOSTNAME: "aws_lambda",
+      AWS_BUCKET: options[:bucket],
+    }
+
   terraform.config dir
 end
-
-
