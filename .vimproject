@@ -29,6 +29,7 @@ scout-camp=/$PWD filter="*" {
    add
    status
    apply
+   plan
    destroy
    remove
   }
@@ -41,6 +42,19 @@ scout-camp=/$PWD filter="*" {
      output.tf
      variables.tf
     }
+    lambda=lambda {
+     main.tf
+     variables.tf
+    }
+    role=role{
+     main.tf
+     variables.tf
+     output.tf
+    }
+    policy_attachment=policy_attachment {
+     main.tf
+     variables.tf
+    }
     cluster=cluster {
      main.tf
      output.tf
@@ -50,10 +64,6 @@ scout-camp=/$PWD filter="*" {
      locals.tf
      main.tf
      output.tf
-     variables.tf
-    }
-    lambda=lambda {
-     main.tf
      variables.tf
     }
     provider=provider {

@@ -21,3 +21,7 @@ variable "environment_variables" {
   description = "A map of environment variables to pass to the resource"
   default     = {}
 }
+variable "role" {
+  description = "Role to assume"
+  type = string
+}

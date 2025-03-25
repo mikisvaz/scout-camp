@@ -82,11 +82,22 @@ lambda_package dependencies, workflows, code do |file|
   filename = 'lambda_package.zip'
   Open.cp file, dir[filename]
 
-  terraform.add :aws, :lambda, function_name: "#{name}Job", filename: filename, 
+  role = terraform.add :aws, :role, role_name: "lambda_execution_role", principal: {Service: ["lambda.amazonaws.com"]}
+
+  terraform.add :aws, :policy_attachment, name: "exec_policy", policy_name: "lamda_basic_execution", 
+    roles: [role.id], 
+    policy_arn: "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+
+  terraform.add :aws, :policy_attachment, name: "s3_policy", policy_name: "lamda_s3_full_access", 
+    roles: [role.id], 
+    policy_arn: "arn:aws:iam::aws:policy/AmazonS3FullAccess"
+
+  terraform.add :aws, :lambda, function_name: "#{name}Job", filename: filename, role: role.arn,
     environment_variables: {
       HOME: '.',
       HOSTNAME: "aws_lambda",
       AWS_BUCKET: options[:bucket],
+      SCOUT_NOCOLOR: "true"
     }
 
   terraform.config dir
