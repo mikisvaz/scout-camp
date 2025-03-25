@@ -18,10 +18,15 @@ module Open
     end
 
     def self.claim(uri, ...)
-      is_s3? uri
+      if Path === uri and not uri.located?
+        is_s3? uri.find
+      else
+        is_s3? uri
+      end
     end
 
     def self.parse_s3_uri(uri)
+      uri = uri.find if Path === uri and not uri.located?
       uri = uri.sub(%r{^s3://}, '')
       bucket, *key_parts = uri.split('/', -1)
       key = key_parts.join('/').sub(%r{^/}, '')
