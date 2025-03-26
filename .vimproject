@@ -72,6 +72,9 @@ scout-camp=/$PWD filter="*" {
     }
    }
   }
+  aws=aws{
+   lambda_function.rb
+  }
  }
  test=test {
   test_helper.rb

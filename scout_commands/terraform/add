@@ -35,33 +35,15 @@ IndiferentHash.add_defaults options, workflows: '', dependencies: 'scout-gear,sc
 
 workflows = options[:workflows].split(",")
 dependencies = options[:dependencies].split(",")
+dependencies.push 'scout-camp' unless dependencies.include?('scout-camp')
 
-code =<<-'EOF'
-def lambda_handler(event:, context:)
-  require 'scout'
-  Path.path_maps[:bucket] = "s3://#{ENV["AWS_BUCKET"]}/{TOPLEVEL}/{SUBPATH}"
-  Path.path_maps[:default] = :bucket
-
-  require 'scout/workflow'
-  require 'scout/aws/s3'
-
-  workflow, task_name, jobname, inputs = IndiferentHash.process_options event, 
-  :workflow, :task_name, :jobname, :inputs
-
-  wf = Workflow.require_workflow workflow
-
-  job = wf.job(task_name, jobname, inputs)
-  job.run
-end
-EOF
-
-def lambda_package(dependencies, workflows, code)
+def lambda_package(dependencies, workflows, function_file)
   TmpFile.with_path do |dir|
-    dir["lambda_function.rb"].write code
+    Open.cp function_file, dir["lambda_function.rb"]
     dir["Gemfile"].write "source 'https://rubygems.org'\n" + dependencies.collect{|d| "gem '#{d}'"}*"\n"
     workflows.each do |workflow|
       Open.mkdir dir[".scout"].workflows
-      Open.cp Scout.workflows[workflow], dir[".scout"].workflows[workflow]
+      Open.ln_s Scout.workflows[workflow], dir[".scout"].workflows[workflow]
     end
     Misc.in_dir dir do
       `bundle config set path 'vendor/bundle'`
@@ -76,8 +58,7 @@ def lambda_package(dependencies, workflows, code)
   end
 end
 
-require 'aws-sdk'
-lambda_package dependencies, workflows, code do |file|
+lambda_package dependencies, workflows, Scout.share.aws.lambda_function.set_extension('rb') do |file|
   terraform = TerraformDSL.new
   filename = 'lambda_package.zip'
   Open.cp file, dir[filename]

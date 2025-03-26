@@ -69,8 +69,13 @@ module Open
 
         resp.contents.each do |object|
           key = object.key
-          remaining = key[prefix.length..-1] || ''
-          remaining = remaining.sub(%r{^/}, '') if prefix.empty? # Handle root-level keys with leading slash
+
+          if prefix.empty?
+            remaining = key.sub(%r{^/}, '')
+          else
+            remaining = key[prefix.length..-1] || ''
+            remaining = remaining.sub(%r{^/}, '')
+          end
 
           if File.fnmatch?(pattern, remaining, File::FNM_PATHNAME)
             matches << "s3://#{bucket}/#{key}"
@@ -143,6 +148,8 @@ module Open
       Open::S3.write(path, content)
     end
 
+    def self.mkdir(path)
+    end
   end
 end
 
