@@ -1,5 +1,6 @@
 def lambda_handler(event:, context:)
   require 'scout'
+
   Path.path_maps[:bucket] = "s3://#{ENV["AWS_BUCKET"]}/{TOPLEVEL}/{SUBPATH}"
   Path.path_maps[:default] = :bucket
 

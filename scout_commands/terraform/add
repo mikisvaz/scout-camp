@@ -14,6 +14,7 @@ $ #{$0} [<options>] <name>
 -w--workflows* Workflows to provision
 -w--dependencies* Workflows to provision
 -b--bucket* Bucket to connect
+--pkg* Pkgdir, scout or rbbt (defaults to scout)
 EOF
 if options[:help]
   if defined? scout_usage
@@ -31,19 +32,20 @@ deployments = Scout.var.deployments.glob_all("*").collect(&:basename)
 raise "Deployment clash" if deployments.include? name
 dir =  Scout.var.deployments[name]
 
-IndiferentHash.add_defaults options, workflows: '', dependencies: 'scout-gear,scout-camp', bucket: 'scout.var'
+IndiferentHash.add_defaults options, workflows: '', dependencies: 'scout-gear,scout-camp', bucket: 'scout.var', pkg: 'scout'
 
 workflows = options[:workflows].split(",")
 dependencies = options[:dependencies].split(",")
 dependencies.push 'scout-camp' unless dependencies.include?('scout-camp')
+pkg = options[:pkg]
 
-def lambda_package(dependencies, workflows, function_file)
+def lambda_package(dependencies, workflows, function_file, pkg)
   TmpFile.with_path do |dir|
     Open.cp function_file, dir["lambda_function.rb"]
     dir["Gemfile"].write "source 'https://rubygems.org'\n" + dependencies.collect{|d| "gem '#{d}'"}*"\n"
     workflows.each do |workflow|
-      Open.mkdir dir[".scout"].workflows
-      Open.ln_s Scout.workflows[workflow], dir[".scout"].workflows[workflow]
+      Open.mkdir dir[".#{pkg}"].workflows
+      Open.ln_s Scout.workflows[workflow], dir[".#{pkg}"].workflows[workflow]
     end
     Misc.in_dir dir do
       `bundle config set path 'vendor/bundle'`
@@ -51,18 +53,18 @@ def lambda_package(dependencies, workflows, function_file)
       `rm -Rf vendor/bundle/ruby/*/cache`
       `rm -Rf vendor/bundle/ruby/*/gems/RubyInline*`
       TmpFile.with_file nil, extension: :zip do |zip|
-        `zip -r "#{zip}" vendor/bundle lambda_function.rb .scout`
+        `zip -r "#{zip}" vendor/bundle lambda_function.rb .#{pkg}`
         yield zip
       end
     end
   end
 end
 
-lambda_package dependencies, workflows, Scout.share.aws.lambda_function.set_extension('rb') do |file|
-  terraform = TerraformDSL.new
+lambda_package dependencies, workflows, Scout.share.aws.lambda_function.set_extension('rb'), options[:pkg] do |file|
   filename = 'lambda_package.zip'
   Open.cp file, dir[filename]
 
+  terraform = TerraformDSL.new
   role = terraform.add :aws, :role, role_name: "lambda_execution_role", principal: {Service: ["lambda.amazonaws.com"]}
 
   terraform.add :aws, :policy_attachment, name: "exec_policy", policy_name: "lamda_basic_execution", 

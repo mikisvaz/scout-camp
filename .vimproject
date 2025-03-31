@@ -27,11 +27,13 @@ scout-camp=/$PWD filter="*" {
   terraform=terraform{
    list
    add
+   fargate
    status
    apply
    plan
    destroy
    remove
+   task
   }
  }
  share=share {
@@ -64,6 +66,11 @@ scout-camp=/$PWD filter="*" {
      locals.tf
      main.tf
      output.tf
+     variables.tf
+    }
+    fargate=fargate{
+     locals.tf
+     main.tf
      variables.tf
     }
     provider=provider {

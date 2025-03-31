@@ -1,4 +1,3 @@
-
 variable "ami" {
   description = "AMI id for host"
   type = string
