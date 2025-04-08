@@ -10,7 +10,11 @@ module Open
     extend Hook
 
     def self.lock(*args, &block)
-      yield nil
+      begin
+        yield nil
+      rescue KeepLocked
+        $!.payload
+      end
     end
 
     def self.is_s3?(uri)
@@ -51,6 +55,7 @@ module Open
       bucket, key = parse_s3_uri(uri)
       s3 = Aws::S3::Client.new
       content = Open.open_pipe(&block).read if block_given?
+      content = content.read if IO === content
       s3.put_object(bucket: bucket, key: key, body: content)
     end
 
@@ -130,6 +135,18 @@ module Open
       false
     end
 
+    def self.cp(source, target)
+      source_bucket, source_key = parse_s3_uri(source)
+      target_bucket, target_key = parse_s3_uri(target)
+
+      s3 = Aws::S3::Client.new
+      s3.copy_object({
+        copy_source: "#{source_bucket}/#{source_key}",
+        bucket: target_bucket,
+        key: target_key
+      })
+    end
+
     def self.exists?(uri)
       bucket, key = parse_s3_uri(uri)
       return false if key.empty? # Can't check existence of bucket this way
@@ -142,13 +159,25 @@ module Open
     end
 
     self.singleton_class.alias_method :exist?, :exists?
-  
 
     def self.sensible_write(path, content = nil, options = {}, &block)
+      content = content.to_s if content.respond_to?(:write_file)
       Open::S3.write(path, content)
     end
 
     def self.mkdir(path)
+    end
+
+    def self.link(source, target, options = {})
+      cp(source, target)
+    end
+
+    def self.ln(source, target, options = {})
+      cp(source, target)
+    end
+
+    def self.ln_s(source, target, options = {})
+      cp(source, target)
     end
   end
 end
@@ -162,8 +191,8 @@ module Path
     end
 
     def glob(*args)
-      if Open::S3.is_s3?(self)
-        Open::S3.glob(self, *args)
+      if Open::S3.is_s3?(self.find)
+        Open::S3.glob(self.find, *args)
       else
         orig_glob(*args)
       end
