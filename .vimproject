@@ -26,14 +26,17 @@ scout-camp=/$PWD filter="*" {
   offsite
   terraform=terraform{
    list
+   add=add{
+    lambda
+    relay
+   }
    add
-   fargate
    status
    apply
    plan
    destroy
    remove
-   task
+   lambda_task
   }
  }
  share=share {

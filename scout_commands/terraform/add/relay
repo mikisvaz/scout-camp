@@ -1,0 +1,40 @@
+#!/usr/bin/env ruby
+
+require 'scout'
+
+$0 = "scout #{$previous_commands.any? ? $previous_commands*" " + " " : "" }#{ File.basename(__FILE__) }" if $previous_commands
+
+options = SOPT.setup <<EOF
+
+Add a new deployment
+
+$ #{$0} [<options>] <name>
+
+-h--help Print this help
+-s--server* Server name
+-u--user* User in server
+-m--model* Model name
+EOF
+if options[:help]
+  if defined? scout_usage
+    scout_usage 
+  else
+    puts SOPT.doc
+  end
+  exit 0
+end
+
+name = ARGV.shift
+raise MissingParameterException, :name if name.nil?
+
+server, user, model = IndiferentHash.process_options options, :server, :user, :model
+
+deployments = Scout.var.deployments.glob_all("*").collect(&:basename)
+raise "Deployment clash" if deployments.include? name
+dir =  Scout.var.deployments[name]
+
+terraform = TerraformDSL.new
+
+ollama = terraform.add :ssh, :cmd, service_id: "#{name}_ollama", name: "ollama", host: server, user: user, command: 'module load ollama; ollama serve'
+terraform.add :ssh, :cmd, service_id: "#{name}_ollama", name: "process", host: server, user: user, command: %Q(bash -l -c "scout-ai llm process -ck 'backend ollama ask,model #{model} ask'"), depends_on: [ollama] 
+terraform.config dir

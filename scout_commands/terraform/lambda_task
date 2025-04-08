@@ -1,0 +1,124 @@
+#!/usr/bin/env ruby
+
+require 'scout'
+
+$0 = "scout #{$previous_commands.any? ? $previous_commands*" " + " " : "" }#{ File.basename(__FILE__) }" if $previous_commands
+
+options = SOPT.setup <<EOF
+
+Call a task on AWS
+
+$ #{$0} [<options>] <workflow> <task> [<other|->]*
+
+-h--help Print this help
+--prefix* Prefix, defaults to Scout
+--clean Clean job
+--recursive_clean Clean job recursively
+EOF
+workflow, task_name = ARGV
+
+if workflow.nil? && options[:help]
+  if defined? scout_usage
+    scout_usage 
+  else
+    puts SOPT.doc
+  end
+  exit 0
+end
+
+raise ParamterException, "No workflow specified" if workflow.nil?
+
+prefix, clean, recursive_clean = IndiferentHash.process_options options, :prefix, :clean, :recursive_clean, 
+  prefix: "Scout"
+
+require 'aws-sdk-lambda'
+
+payload = {}
+payload["workflow"] = workflow
+payload["task_name"] = task_name
+
+if clean
+  payload["clean"] = true
+elsif recursive_clean
+  payload["clean"] = 'recursive'
+end
+
+lambda_handler = "#{prefix}Job"
+
+def aws_lambda(name, payload)
+  client = Aws::Lambda::Client.new
+  resp = client.invoke({
+    function_name: name, 
+    payload: payload.to_json, 
+  })
+
+  JSON.load(resp.payload)
+end
+
+def SOPT_str(task_info)
+  sopt_options = []
+  task_info[:inputs].each do |name|
+    options = task_info[:input_options][name]
+    type = task_info[:input_types][name]
+    shortcut = (options && options[:shortcut]) || name.to_s.slice(0,1)
+    boolean = type.to_sym == :boolean
+
+    sopt_options << "-#{shortcut}--#{name}#{boolean ? "" : "*"}"
+  end
+
+  sopt_options * ":"
+end
+
+def get_SOPT(task_info)
+  IndiferentHash.setup task_info
+  sopt_option_string = self.SOPT_str(task_info)
+  job_options = SOPT.get sopt_option_string
+
+  task_info[:inputs].each do |name|
+    options = task_info[:input_options][name]
+    type = task_info[:input_types][name]
+    next unless type.to_s.include?('array')
+    if job_options.include?(name) && (! Open.exist?(job_options[name]) || type.to_s.include?('file') || type.to_s.include?('path'))
+      job_options[name] = job_options[name].split(",")
+    end
+  end
+  job_options
+end
+
+res = case task_name
+      when nil
+
+      if options[:help]
+          if defined? scout_usage
+            scout_usage 
+          else
+            puts SOPT.doc
+          end
+          exit 0
+        end
+
+        aws_lambda(lambda_handler, payload)
+      else
+        task_info = aws_lambda(lambda_handler, payload.merge(task_name: "info", inputs: {task_name: task_name}))
+        
+        payload["inputs"] = get_SOPT(task_info)
+
+        if options[:help]
+          if defined? scout_usage
+            scout_usage 
+          else
+            puts SOPT.doc
+          end
+          exit 0
+        end
+
+        aws_lambda(lambda_handler, payload)
+      end
+
+if Hash === res && res["errorMessage"]
+  Log.error res["errorMessage"]
+  Log.stack res["stackTrace"] if res["stackTrace"]
+  exit -1
+else
+  iii res
+end
