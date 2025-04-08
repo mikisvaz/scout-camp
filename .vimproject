@@ -81,6 +81,23 @@ scout-camp=/$PWD filter="*" {
      output.tf
     }
    }
+   ssh=ssh{
+    cmd=cmd{
+     main.tf
+     variables.tf
+    }
+    ollama=ollama{
+     main.tf
+     variables.tf
+    }
+    vllm=vllm{
+     main.tf
+     variables.tf
+    }
+    relay=relay{
+
+    }
+   }
   }
   aws=aws{
    lambda_function.rb
