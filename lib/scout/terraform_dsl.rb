@@ -80,7 +80,12 @@ class TerraformDSL
     def to_json(*_args)
       ['module', @name].join('.')
     end
+  end
 
+  module DirectReference
+    def to_json(*_args)
+      self
+    end
   end
 
   MODULES_DIR = Scout.share.terraform
@@ -178,6 +183,52 @@ class TerraformDSL
   def custom(file, text)
     @custom_files << [file, text]
     nil
+  end
+
+  # Add a backend template file without using modules.
+  #
+  # @param variables [Hash] variables for the backend:
+  #   :bucket, :key & :region
+  def backend(type, variables = {})
+    variables = variables.dup
+
+    text =<<~EOF
+    terraform {
+        backend "#{type}" {
+        #{variable_block(variables)}
+        }
+    }
+    EOF
+
+    element_file = ['backend_config', type.to_s].join('.')
+
+    custom(element_file, text)
+
+    nil
+  end
+
+  # Connect to a remote state through a backend
+  #
+  # @param variables [Hash] variables for the backend:
+  #   :bucket, :key & :region
+  def remote(type, key, variables = {})
+    variables = variables.dup
+    variables[:key] = key unless variables.include?(:key)
+
+    text =<<~EOF
+    data "terraform_remote_state" "#{key}" {
+        backend = "#{type}"
+        config = {
+          #{variable_block(variables)}
+        }
+    }
+    EOF
+
+    element_file = ['remote', type.to_s, key.to_s].join('.')
+
+    custom(element_file, text)
+
+    "data.terraform_remote_state.#{key}".extend DirectReference 
   end
 
   # Add a provider template file without using modules.
