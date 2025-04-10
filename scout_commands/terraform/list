@@ -25,6 +25,7 @@ end
 deployments = Scout.var.deployments.glob_all("*")
 
 deployments.each do |dir|
+  next unless File.directory?(dir)
   name = File.basename dir
   deployment = TerraformDSL::Deployment.new dir
   active = options[:active] && deployment.provisioned_elements.any?
