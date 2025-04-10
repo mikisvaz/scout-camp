@@ -1,3 +1,4 @@
+require_relative 'ssh'
 class SSHLine
   def self.locate(server, paths, map: :user)
     SSHLine.scout server, <<-EOF
@@ -5,6 +6,7 @@ map = :#{map}
 paths = [#{paths.collect{|p| "'" + p + "'" } * ", " }]
 located = paths.collect{|p| Path.setup(p).find(map) }
 identified = paths.collect{|p| Resource.identify(p) }
+located = located.collect{|path| path << "/" if path.directory? }
 [located, identified]
     EOF
   end

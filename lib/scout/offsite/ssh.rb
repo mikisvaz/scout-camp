@@ -90,6 +90,7 @@ class SSHLine
   def scout(script)
     scout_script =<<-EOF
 require 'scout'
+require 'scout/offsite/ssh'
 SSHLine.run_local do
 #{script.strip}
 end

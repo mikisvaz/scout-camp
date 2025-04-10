@@ -19,11 +19,14 @@ scout-camp=/$PWD filter="*" {
     ssh.rb
     step.rb
     sync.rb
+    resource.rb
    }
   }
  }
  scout_commands=scout_commands {
   offsite
+  sync
+
   terraform=terraform{
    list
    add=add{
