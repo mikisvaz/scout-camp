@@ -1,4 +1,5 @@
 require 'net/ssh'
+require 'scout/persist'
 require_relative 'exceptions'
 
 class SSHLine
