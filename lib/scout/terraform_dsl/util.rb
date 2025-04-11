@@ -13,9 +13,9 @@ class TerraformDSL
   # @param prefix [nil,String] Optional prefix to prepend
   def self.log(msg, prefix = nil)
     if prefix
-      STDOUT.puts("[#{prefix}] " + msg)
+      Log.info("[#{prefix}] " + msg)
     else
-      STDOUT.puts(msg)
+      Log.info(msg)
     end
   end
 

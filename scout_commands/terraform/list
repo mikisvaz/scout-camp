@@ -28,10 +28,17 @@ deployments.each do |dir|
   next unless File.directory?(dir)
   name = File.basename dir
   deployment = TerraformDSL::Deployment.new dir
-  active = options[:active] && deployment.provisioned_elements.any?
+  #active = options[:active] && deployment.provisioned_elements.any?
   
-  if active
-    puts Log.color(:title, name ) + "\t" + dir + "\t" + "Active" 
+  if options[:active]
+    Log.with_severity 5 do
+      print Log.color(:title, name ) + "\t" + dir + "\t" 
+      if deployment.provisioned_elements.any?
+        puts Log.color :present, "Active" 
+      else
+        puts Log.color :missing, "Inactive" 
+      end
+    end
   else
     puts Log.color(:title, name) + "\t" + dir
   end
