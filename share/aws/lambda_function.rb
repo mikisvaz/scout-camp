@@ -7,11 +7,11 @@ def lambda_handler(event:, context:)
   require 'scout/workflow'
   require 'scout/aws/s3'
 
-  workflow, task_name, jobname, inputs = IndiferentHash.process_options event, 
-  :workflow, :task_name, :jobname, :inputs
-  
+  workflow, task_name, jobname, inputs, clean = IndiferentHash.process_options event,
+  :workflow, :task_name, :jobname, :inputs, :clean
+
   raise ParamterException, "No workflow specified" if workflow.nil?
-  
+
   workflow = Workflow.require_workflow workflow
 
   case task_name
@@ -22,6 +22,16 @@ def lambda_handler(event:, context:)
     return workflow.task_info(inputs["task_name"])
   else
     job = workflow.job(task_name, jobname, inputs)
-    job.run
+
+    case clean
+    when true, 'true'
+      job.clean
+    when 'recursive'
+      job.recursive_clean
+    end
+
+    job.produce
+
+    job.load
   end
 end
