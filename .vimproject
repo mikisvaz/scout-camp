@@ -35,6 +35,7 @@ scout-camp=/$PWD filter="*" {
    }
    add
    status
+   outputs
    apply
    plan
    destroy
