@@ -51,6 +51,12 @@ variable "image" {
   description = "Docker image URL for the container"
 }
 
+variable "user" {
+  description = "User to use"
+  type        = string
+  default = null
+}
+
 variable "port_mappings" {
   type = list(object({
     containerPort = number

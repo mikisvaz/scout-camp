@@ -10,6 +10,7 @@ resource "aws_ecs_task_definition" "this" {
     {
       name      = var.container_name
       image     = var.image
+      user     = var.user
       essential = true
       portMappings = var.port_mappings
       //entryPoint = var.entry_point

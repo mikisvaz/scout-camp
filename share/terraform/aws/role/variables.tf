@@ -8,4 +8,7 @@ variable "principal" {
   type = map(any)
 }
 
-
+variable "action" {
+  description = "Action of the role"
+  default = "sts:AssumeRole"
+}
