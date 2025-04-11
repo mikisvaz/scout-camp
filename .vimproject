@@ -30,10 +30,11 @@ scout-camp=/$PWD filter="*" {
   terraform=terraform{
    list
    add=add{
-    lambda
     relay
+    lambda
+    host
+    fargate
    }
-   add
    status
    outputs
    apply
@@ -46,15 +47,46 @@ scout-camp=/$PWD filter="*" {
  share=share {
   terraform=terraform {
    aws=aws {
+    fargate=fargate{
+     main.tf
+     variables.tf
+     locals.tf
+    }
+
+    efs_host=efs_host{
+     main.tf
+     variables.tf
+     locals.tf
+     data.tf
+     output.tf
+    }
+
+    efs=efs{
+     main.tf
+     variables.tf
+     data.tf
+     locals.tf
+     output.tf
+    }
+
+    network=network{
+     data.tf
+     main.tf
+     variables.tf
+     output.tf
+    }
+
     bucket=bucket {
      main.tf
      output.tf
      variables.tf
     }
+
     lambda=lambda {
      main.tf
      variables.tf
     }
+
     role=role{
      main.tf
      variables.tf
@@ -73,11 +105,6 @@ scout-camp=/$PWD filter="*" {
      locals.tf
      main.tf
      output.tf
-     variables.tf
-    }
-    fargate=fargate{
-     locals.tf
-     main.tf
      variables.tf
     }
     provider=provider {
