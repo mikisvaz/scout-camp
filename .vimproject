@@ -92,6 +92,17 @@ scout-camp=/$PWD filter="*" {
      variables.tf
      output.tf
     }
+    
+    policy=policy{
+     main.tf
+     variables.tf
+     output.tf
+    }
+
+    role_policy=role_policy{
+     main.tf
+     variables.tf
+    }
     policy_attachment=policy_attachment {
      main.tf
      variables.tf
