@@ -84,6 +84,15 @@ module Open
 
           if File.fnmatch?(pattern, remaining, File::FNM_PATHNAME)
             matches << "s3://#{bucket}/#{key}"
+          else
+            dir = File.dirname(remaining)
+            while dir 
+              if File.fnmatch?(pattern, dir, File::FNM_PATHNAME)
+                matches << "s3://#{bucket}/#{File.join(prefix,dir)}"
+              end
+              break if dir == File.dirname(dir)
+              dir = File.dirname(dir)
+            end
           end
         end
 
