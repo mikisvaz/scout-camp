@@ -74,6 +74,7 @@ module Open
 
         resp.contents.each do |object|
           key = object.key
+          Log.debug object
 
           if prefix.empty?
             remaining = key.sub(%r{^/}, '')
@@ -156,7 +157,7 @@ module Open
       })
     end
 
-    def self.exists?(uri)
+    def self.file_exists?(uri)
       bucket, key = parse_s3_uri(uri)
       return false if key.empty? # Can't check existence of bucket this way
 
@@ -165,6 +166,24 @@ module Open
       true
     rescue Aws::S3::Errors::NotFound, Aws::S3::Errors::NoSuchBucket
       false
+    end
+    
+    def self.directory?(uri)
+      bucket, key = parse_s3_uri(uri)
+      return false if key.empty? # Can't check existence of bucket this way
+
+      s3 = Aws::S3::Client.new
+      response = s3.list_objects_v2({
+        bucket: bucket,
+        prefix: key,
+        max_keys: 1
+      })
+
+      !response.contents.empty?
+    end
+    
+    def self.exists?(uri)
+      file_exists?(uri) || directory?(uri)
     end
 
     self.singleton_class.alias_method :exist?, :exists?
