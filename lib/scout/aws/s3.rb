@@ -232,6 +232,3 @@ end
 
 Hook.apply(Open::S3, Open)
 Hook.apply(Path::S3, Path)
-
-
-#$ ask -t code --file /home/miki/git/scout-camp/lib/scout/aws/s3.rb extend this file [[...]] to include a function called self.exists? that determines if a uri exists {{{
