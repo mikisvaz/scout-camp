@@ -74,7 +74,6 @@ module Open
 
         resp.contents.each do |object|
           key = object.key
-          Log.debug object
 
           if prefix.empty?
             remaining = key.sub(%r{^/}, '')
@@ -82,6 +81,8 @@ module Open
             remaining = key[prefix.length..-1] || ''
             remaining = remaining.sub(%r{^/}, '')
           end
+
+          Log.debug remaining
 
           if File.fnmatch?(pattern, remaining, File::FNM_PATHNAME)
             matches << "s3://#{bucket}/#{key}"
