@@ -65,6 +65,7 @@ module Open
       matches = []
       continuation_token = nil
 
+      Log.debug "Glob: #{uri} #{pattern}"
       loop do
         resp = s3.list_objects_v2(
           bucket: bucket,
@@ -82,7 +83,7 @@ module Open
             remaining = remaining.sub(%r{^/}, '')
           end
 
-          Log.debug remaining
+          Log.debug "Glob: #{remaining}"
 
           if File.fnmatch?(pattern, remaining, File::FNM_PATHNAME)
             matches << "s3://#{bucket}/#{key}"
