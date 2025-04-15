@@ -148,15 +148,19 @@ module Open
     end
 
     def self.cp(source, target)
-      source_bucket, source_key = parse_s3_uri(source)
-      target_bucket, target_key = parse_s3_uri(target)
+      if is_s3?(target)
+        source_bucket, source_key = parse_s3_uri(source)
+        target_bucket, target_key = parse_s3_uri(target)
 
-      s3 = Aws::S3::Client.new
-      s3.copy_object({
-        copy_source: "#{source_bucket}/#{source_key}",
-        bucket: target_bucket,
-        key: target_key
-      })
+        s3 = Aws::S3::Client.new
+        s3.copy_object({
+          copy_source: "#{source_bucket}/#{source_key}",
+          bucket: target_bucket,
+          key: target_key
+        })
+      else
+        Open.sensible_write(target, get_stream(source))
+      end
     end
 
     def self.file_exists?(uri)
