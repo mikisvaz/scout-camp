@@ -59,6 +59,13 @@ module Open
       s3.put_object(bucket: bucket, key: key, body: content)
     end
 
+    def self.touch(uri)
+      if self.exists?(uri)
+      else
+        self.cp(uri, uri)
+      end
+    end
+
     def self.glob(uri, pattern="**/*")
       bucket, prefix = parse_s3_uri(uri)
       s3 = Aws::S3::Client.new
