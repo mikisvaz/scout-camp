@@ -40,7 +40,7 @@ def lambda_handler(event:, context:)
         body: job.path
       }
     elsif queue
-      save_inputs = Scout.var.queue[workflow.to_s][task_name][job.name].find
+      save_inputs = Scout.var.queue[workflow.to_s][task_name][job.name].find :bucket
       job.save_inputs(save_inputs)
       {
         statusCode: 202,

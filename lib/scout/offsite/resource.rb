@@ -11,7 +11,7 @@ module Resource
       resource = path.pkgdir if resource.nil? and path.is_a?(Path) and path.pkgdir.is_a?(Resource)
       resource = Resource.default_resource if resource.nil?
 
-      if File.exist?(path)
+      if Path.located?(path)
         real_paths = [path]
       else
         path = Path.setup(path, pkgdir: resource) unless path.is_a?(Path)

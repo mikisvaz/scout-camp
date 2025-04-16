@@ -21,12 +21,16 @@ module Open
       uri.start_with? 's3://'
     end
 
-    def self.claim(uri, ...)
+    def self.claim_uri(uri)
       if Path === uri and not uri.located?
-        is_s3? uri.find
+        is_s3?(uri.find)
       else
         is_s3? uri
       end
+    end
+
+    def self.claim(uri, uri2=nil, ...)
+      claim_uri(uri) || (String === uri2 && claim_uri(uri2))
     end
 
     def self.parse_s3_uri(uri)
@@ -66,13 +70,12 @@ module Open
       end
     end
 
-    def self.glob(uri, pattern="**/*")
+    def self.glob(uri, pattern="*")
       bucket, prefix = parse_s3_uri(uri)
       s3 = Aws::S3::Client.new
       matches = []
       continuation_token = nil
 
-      Log.debug "Glob: #{uri} #{pattern}"
       loop do
         resp = s3.list_objects_v2(
           bucket: bucket,
@@ -185,6 +188,7 @@ module Open
       bucket, key = parse_s3_uri(uri)
       return false if key.empty? # Can't check existence of bucket this way
 
+      key += '/' unless key.end_with?('/')
       s3 = Aws::S3::Client.new
       response = s3.list_objects_v2({
         bucket: bucket,
@@ -223,6 +227,68 @@ module Open
 
     def self.ln_s(source, target, options = {})
       cp(source, target)
+    end
+
+    def self.sync(source, target, options = {})
+      excludes, files, hard_link, test, print, delete, other = IndiferentHash.process_options options,
+        :excludes, :files, :hard_link, :test, :print, :delete, :other
+
+      excludes ||= %w(.save .crap .source tmp filecache open-remote)
+      excludes = excludes.split(/,\s*/) if excludes.is_a?(String) and not excludes.include?("--exclude")
+
+      if File.directory?(source) || source.end_with?("/")
+        source += "/" unless source.end_with? '/'
+        target += "/" unless target.end_with? '/'
+      end
+
+      if source == target
+        Log.warn "Asking to sync with itself"
+        return
+      end
+
+      Log.low "Migrating #{source} #{files.length} files to #{target} - #{Misc.fingerprint(files)}}" if files
+
+      sync_args = %w()
+      sync_args << excludes.collect{|s| "--exclude '#{s}'" } if excludes and excludes.any?
+      sync_args << "-nv" if test
+
+      if files
+        tmp_files = TmpFile.tmp_file 's3_sync_files-'
+        Open.write(tmp_files, files * "\n")
+        sync_args << "--files-from='#{tmp_files}'"
+      end
+
+      if Open.directory?(source)
+        cmd = "aws s3 sync #{sync_args * " "} #{source} #{target}"
+      else
+        cmd = "aws s3 cp #{source} #{target}"
+      end
+      case other
+      when String
+        cmd << " " << other
+      when Array
+        cmd << " " << other * " "
+      end
+      cmd << " && rm -Rf #{source}" if delete && ! files
+
+      if print
+        cmd
+      else
+        CMD.cmd_log(cmd, :log => Log::HIGH)
+
+        if delete && files
+          remove_files = files.collect{|f| File.join(source, f) }
+          dirs = remove_files.select{|f| File.directory? f }
+          remove_files.each do |file|
+            next if dirs.include? file
+            Open.rm file
+          end
+
+          dirs.each do |dir|
+            FileUtils.rmdir dir if Dir.glob(dir).empty?
+          end
+        end
+      end
     end
   end
 end

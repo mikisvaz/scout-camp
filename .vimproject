@@ -89,6 +89,7 @@ scout-camp=/$PWD filter="*" {
 
     container_lambda=container_lambda{
      main.tf
+     data.tf
      locals.tf
      variables.tf
     }
