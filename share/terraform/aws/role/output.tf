@@ -3,7 +3,7 @@ output "arn" {
   value = aws_iam_role.this.arn
 }
 
-output "name" {
+output "role_name" {
   description = "Role name"
   value = aws_iam_role.this.name
 }

@@ -7,7 +7,7 @@ class TestS3 < Test::Unit::TestCase
     file = "s3://herlab/tmp/foo.txt"
 
     Open::S3.write file, "TEST"
-  
+
     dir = "s3://herlab/tmp"
 
     assert_include Open::S3.glob(dir, "**/*"), file
@@ -27,6 +27,19 @@ class TestS3 < Test::Unit::TestCase
     Open::S3.write uri, "TEST"
     io = Open::S3.get_stream uri
     assert_equal "TEST", io.read
+    Open::S3.rm uri
+  end
+
+  def test_cp
+    uri = "s3://herlab/tmp/foo.txt"
+
+    Open::S3.write uri, "TEST"
+    io = Open::S3.get_stream uri
+    assert_equal "TEST", io.read
+    TmpFile.with_path do |file|
+      Open.cp uri, file
+      assert_equal "TEST", Open.read(file)
+    end
     Open::S3.rm uri
   end
 

@@ -87,6 +87,12 @@ scout-camp=/$PWD filter="*" {
      variables.tf
     }
 
+    container_lambda=container_lambda{
+     main.tf
+     locals.tf
+     variables.tf
+    }
+
     role=role{
      main.tf
      variables.tf
@@ -103,10 +109,18 @@ scout-camp=/$PWD filter="*" {
      main.tf
      variables.tf
     }
+
     policy_attachment=policy_attachment {
      main.tf
      variables.tf
     }
+
+    iam_instance_profile=iam_instance_profile{
+     main.tf
+     variables.tf
+     output.tf
+    }
+
     cluster=cluster {
      main.tf
      output.tf

@@ -5,7 +5,7 @@ variable "function_name" {
 variable "runtime" {
   description = "Ruby runtime"
   type = string
-  default = "ruby3.2"
+  default = "ruby3.3"
 }
 variable "filename" {
   description = "ZIP filename with lambda handler"
@@ -21,7 +21,6 @@ variable "environment_variables" {
   description = "A map of environment variables to pass to the resource"
   default     = {}
 }
-variable "role" {
-  description = "Role to assume"
-  type = string
+variable "policies" {
+  description = "Name of the remote state block to use for the policies"
 }

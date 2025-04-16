@@ -7,10 +7,10 @@ def lambda_handler(event:, context:)
   require 'scout/workflow'
   require 'scout/aws/s3'
 
-  workflow, task_name, jobname, inputs, clean = IndiferentHash.process_options event,
-  :workflow, :task_name, :jobname, :inputs, :clean
+  workflow, task_name, jobname, inputs, clean, queue = IndiferentHash.process_options event,
+    :workflow, :task_name, :jobname, :inputs, :clean, :queue
 
-  raise ParamterException, "No workflow specified" if workflow.nil?
+  raise ParameterException, "No workflow specified" if workflow.nil?
 
   workflow = Workflow.require_workflow workflow
 
@@ -18,7 +18,7 @@ def lambda_handler(event:, context:)
   when nil
     return {tasks: workflow.tasks.keys, documentation: workflow.documentation}
   when "info"
-    raise ParamterException, "No task_name specified" if task_name.nil?
+    raise ParameterException, "No task_name specified" if task_name.nil?
     return workflow.task_info(inputs["task_name"])
   else
     job = workflow.job(task_name, jobname, inputs)
@@ -30,8 +30,25 @@ def lambda_handler(event:, context:)
       job.recursive_clean
     end
 
-    job.produce
-
-    job.load
+    if job.done?
+      job.load
+    elsif job.error?
+      raise job.exception
+    elsif job.started?
+      {
+        statusCode: 202,
+        body: job.path
+      }
+    elsif queue
+      save_inputs = Scout.var.queue[workflow.to_s][task_name][job.name].find
+      job.save_inputs(save_inputs)
+      {
+        statusCode: 202,
+        body: job.path
+      }
+    else
+      job.produce
+      job.load
+    end
   end
 end

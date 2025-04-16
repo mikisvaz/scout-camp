@@ -12,6 +12,7 @@ $ #{$0} [<options>] <workflow> <task> [<other|->]*
 
 -h--help Print this help
 --prefix* Prefix, defaults to Scout
+--queue Queue job
 --clean Clean job
 --recursive_clean Clean job recursively
 EOF
@@ -28,14 +29,14 @@ end
 
 raise ParamterException, "No workflow specified" if workflow.nil?
 
-prefix, clean, recursive_clean = IndiferentHash.process_options options, :prefix, :clean, :recursive_clean, 
+prefix, clean, recursive_clean, queue = IndiferentHash.process_options options, :prefix, :clean, :recursive_clean, :queue,
   prefix: "Scout"
 
 require 'aws-sdk-lambda'
 
 payload = {}
-payload["workflow"] = workflow
-payload["task_name"] = task_name
+payload[:workflow] = workflow
+payload[:task_name] = task_name
 
 if clean
   payload["clean"] = true
@@ -43,10 +44,13 @@ elsif recursive_clean
   payload["clean"] = 'recursive'
 end
 
+payload["queue"] = true if queue
+
 lambda_handler = "#{prefix}Job"
 
 def aws_lambda(name, payload)
   client = Aws::Lambda::Client.new
+  Log.debug "Sending Lambda #{name} #{Log.fingerprint payload}"
   resp = client.invoke({
     function_name: name, 
     payload: payload.to_json, 
@@ -64,7 +68,7 @@ def SOPT_str(task_info)
     boolean = type.to_sym == :boolean
 
     sopt_options << "-#{shortcut}--#{name}#{boolean ? "" : "*"}"
-  end
+  end if task_info[:inputs]
 
   sopt_options * ":"
 end
@@ -81,7 +85,7 @@ def get_SOPT(task_info)
     if job_options.include?(name) && (! Open.exist?(job_options[name]) || type.to_s.include?('file') || type.to_s.include?('path'))
       job_options[name] = job_options[name].split(",")
     end
-  end
+  end if task_info[:inputs]
   job_options
 end
 

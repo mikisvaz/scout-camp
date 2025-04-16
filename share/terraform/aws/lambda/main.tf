@@ -5,7 +5,7 @@ resource "aws_lambda_function" "this" {
   filename      = var.filename
   source_code_hash = filebase64sha256(var.filename)
   timeout       = var.timeout
-  role          = var.role
+  role          = var.policies.outputs.lambda_execution_role_arn
 
   environment {
     variables = var.environment_variables

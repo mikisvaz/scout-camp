@@ -194,9 +194,13 @@ module Open
 
       !response.contents.empty?
     end
-    
+
     def self.exists?(uri)
-      file_exists?(uri) || directory?(uri)
+      begin
+        file_exists?(uri) || directory?(uri)
+      rescue
+        false
+      end
     end
 
     self.singleton_class.alias_method :exist?, :exists?

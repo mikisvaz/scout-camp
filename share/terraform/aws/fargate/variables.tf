@@ -6,6 +6,10 @@ variable "efs" {
   description = "Name of the remote state block to use for the EFS"
 }
 
+variable "policies" {
+  description = "Name of the remote state block to use for the policies"
+}
+
 variable "sg_keys" {
   description = "List of output names in the remote state representing security group IDs"
   type        = list(string)
@@ -33,11 +37,6 @@ variable "memory" {
   type        = number
   description = "The memory (MiB) for the task"
   default     = 512
-}
-
-variable "role_arn" {
-  type        = string
-  description = "ARN of the task execution role"
 }
 
 variable "container_name" {
@@ -76,4 +75,10 @@ variable "entry_point" {
   type        = list(string)
   description = "Container entry point"
   default     = ["bash"]
+}
+
+variable "environment" {
+  type        = map(string)
+  description = "A map of environment variables to pass to the resource"
+  default     = null
 }

@@ -86,6 +86,11 @@ class TerraformDSL
     def to_json(*_args)
       self
     end
+
+    def method_missing(elem)
+      new = self + '.' + elem.to_s
+      new.extend DirectReference
+    end
   end
 
   MODULES_DIR = Scout.share.terraform
@@ -134,6 +139,8 @@ class TerraformDSL
 
       if value.is_a?(String) && (m = value.match(/^module\.(.*)\.(.*)/))
         value = Module::Output.new m[1], m[2]
+      elsif value.is_a?(Symbol)
+        value = variables[value]
       end
 
       acc << "  #{name} = #{value.to_json}"

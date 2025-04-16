@@ -4,7 +4,8 @@ resource "aws_ecs_task_definition" "this" {
   network_mode             = "awsvpc"
   cpu                      = var.cpu
   memory                   = var.memory
-  execution_role_arn       = var.role_arn
+  execution_role_arn       = var.policies.outputs.fargate_execution_role_arn
+  task_role_arn            = var.policies.outputs.fargate_task_role_arn
 
   container_definitions = jsonencode([
     {
@@ -15,6 +16,7 @@ resource "aws_ecs_task_definition" "this" {
       portMappings = var.port_mappings
       //entryPoint = var.entry_point
       command = var.command
+      environment = var.environment
 
       mountPoints = [
         {
