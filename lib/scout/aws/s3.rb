@@ -65,8 +65,26 @@ module Open
 
     def self.touch(uri)
       if self.exists?(uri)
-      else
         self.cp(uri, uri)
+      else
+        self.write(uri, '')
+      end
+    end
+
+    def self.size(uri)
+      begin
+        bucket, key = parse_s3_uri(uri)
+
+        s3 = Aws::S3::Client.new
+
+        resp = s3.head_object(bucket: bucket, key: key)
+        return resp.content_length
+      rescue Aws::S3::Errors::NotFound
+        puts "Object not found: #{bucket_name}/#{object_key}"
+        return nil
+      rescue => e
+        puts "Error retrieving object size: #{e.message}"
+        return nil
       end
     end
 

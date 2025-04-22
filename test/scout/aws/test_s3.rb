@@ -21,6 +21,15 @@ class TestS3 < Test::Unit::TestCase
     Open.rm uri
   end
 
+  def test_touch_size
+    uri = "s3://herlab/tmp/foo.txt"
+
+    Open.rm uri
+    Open.touch uri
+    assert_equal 0, Open.size(uri)
+    Open.rm uri
+  end
+
   def test_write_io
     uri = "s3://herlab/tmp/foo.txt"
 
