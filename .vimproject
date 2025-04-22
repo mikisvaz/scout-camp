@@ -47,10 +47,22 @@ scout-camp=/$PWD filter="*" {
  share=share {
   terraform=terraform {
    aws=aws {
+    event_bridge=event_bridge{
+     main.tf
+     data.tf
+     variables.tf
+    }
+
+    lambda=lambda {
+     main.tf
+     variables.tf
+    }
+
     fargate=fargate{
      main.tf
      variables.tf
      locals.tf
+     output.tf
     }
 
     efs_host=efs_host{
@@ -79,11 +91,6 @@ scout-camp=/$PWD filter="*" {
     bucket=bucket {
      main.tf
      output.tf
-     variables.tf
-    }
-
-    lambda=lambda {
-     main.tf
      variables.tf
     }
 

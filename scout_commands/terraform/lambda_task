@@ -14,6 +14,7 @@ $ #{$0} [<options>] <workflow> <task> [<other|->]*
 --prefix* Prefix, defaults to Scout
 --queue Queue job
 --clean Clean job
+--info Return job info
 --recursive_clean Clean job recursively
 EOF
 workflow, task_name = ARGV
@@ -27,9 +28,9 @@ if workflow.nil? && options[:help]
   exit 0
 end
 
-raise ParamterException, "No workflow specified" if workflow.nil?
+raise ParameterException, "No workflow specified" if workflow.nil?
 
-prefix, clean, recursive_clean, queue = IndiferentHash.process_options options, :prefix, :clean, :recursive_clean, :queue,
+prefix, clean, recursive_clean, queue, info = IndiferentHash.process_options options, :prefix, :clean, :recursive_clean, :queue, :info,
   prefix: "Scout"
 
 require 'aws-sdk-lambda'
@@ -115,6 +116,8 @@ res = case task_name
           end
           exit 0
         end
+
+        payload["info"] = true if info
 
         aws_lambda(lambda_handler, payload)
       end

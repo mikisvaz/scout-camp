@@ -7,8 +7,13 @@ def lambda_handler(event:, context:)
   require 'scout/workflow'
   require 'scout/aws/s3'
 
-  workflow, task_name, jobname, inputs, clean, queue = IndiferentHash.process_options event,
-    :workflow, :task_name, :jobname, :inputs, :clean, :queue
+  TmpFile.tmpdir = Path.setup('/tmp')
+  Open.sensible_write_dir = Path.setup('/tmp/sensible_write')
+
+  Log.info "Payload: #{Log.fingerprint(event)}"
+
+  workflow, task_name, jobname, inputs, clean, queue, info = IndiferentHash.process_options event,
+    :workflow, :task_name, :jobname, :inputs, :clean, :queue, :info
 
   raise ParameterException, "No workflow specified" if workflow.nil?
 
@@ -21,6 +26,8 @@ def lambda_handler(event:, context:)
     raise ParameterException, "No task_name specified" if task_name.nil?
     return workflow.task_info(inputs["task_name"])
   else
+    Workflow.job_cache.clear
+
     job = workflow.job(task_name, jobname, inputs)
 
     case clean
@@ -30,7 +37,11 @@ def lambda_handler(event:, context:)
       job.recursive_clean
     end
 
-    if job.done?
+    if info
+      info = job.info.dup
+      info["path"] = job.path
+      info
+    elsif job.done?
       job.load
     elsif job.error?
       raise job.exception
@@ -41,7 +52,7 @@ def lambda_handler(event:, context:)
       }
     elsif queue
       save_inputs = Scout.var.queue[workflow.to_s][task_name][job.name].find :bucket
-      job.save_inputs(save_inputs)
+      job.save_input_bundle(save_inputs) unless save_inputs.exists?
       {
         statusCode: 202,
         body: job.path
