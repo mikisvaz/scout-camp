@@ -42,6 +42,7 @@ Juwelier::Tasks.new do |gem|
   #gem.add_development_dependency "simplecov", ">= 0"
 
   gem.add_runtime_dependency 'scout-essentials', '>= 0'
+  gem.add_runtime_dependency 'aws-sdk-s3', '>= 0'
 end
 Juwelier::RubygemsDotOrgTasks.new
 require 'rake/testtask'

@@ -22,7 +22,7 @@ module Resource
     end
 
     if target
-      target_paths = SSHLine.locate(target, identified_paths, map: map)
+      target_paths, identified_paths = SSHLine.locate(target, identified_paths, map: map)
     else
       target_paths = identified_paths.collect{|p| p.find(map) }
     end

@@ -6,7 +6,7 @@ map = :#{map}
 paths = [#{paths.collect{|p| "'" + p + "'" } * ", " }]
 located = paths.collect{|p| Path.setup(p).find(map) }
 identified = paths.collect{|p| Resource.identify(p) }
-located = located.collect{|path| path << "/" if path.directory? }
+located = located.each{|path| path << "/" if path.directory? }
 [located, identified]
     EOF
   end
@@ -45,7 +45,7 @@ located = located.collect{|path| path << "/" if path.directory? }
     end
 
     if target
-      target_paths = SSHLine.locate(target, identified_paths, map: map)
+      target_paths, identified_paths = SSHLine.locate(target, identified_paths, map: map)
     else
       target_paths = identified_paths.collect{|p| p.find(map) }
     end
