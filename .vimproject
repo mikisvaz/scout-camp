@@ -26,6 +26,7 @@ scout-camp=/$PWD filter="*" {
  scout_commands=scout_commands {
   offsite
   sync
+  find
 
   terraform=terraform{
    list

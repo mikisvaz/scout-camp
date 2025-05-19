@@ -1,12 +1,22 @@
 require_relative 'ssh'
 class SSHLine
+
   def self.locate(server, paths, map: :user)
+    paths = paths.collect do |path|
+      next path unless path.located?
+      relocated = Resource.identify(File.expand_path(path)).find_all.
+        select{|file| Open.same_file(file, path) }.
+        first
+      next path unless relocated
+      relocated.identify
+    end
+
     SSHLine.scout server, <<-EOF
 map = :#{map}
-paths = [#{paths.collect{|p| "'" + p + "'" } * ", " }]
+paths = #{paths}
 located = paths.collect{|p| Path.setup(p).find(map) }
 identified = paths.collect{|p| Resource.identify(p) }
-located = located.each{|path| path << "/" if path.directory? }
+located = located.each{|path| path << "/" if path.directory? && ! path.end_with?('/') }
 [located, identified]
     EOF
   end
