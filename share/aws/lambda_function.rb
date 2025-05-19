@@ -4,8 +4,6 @@ def lambda_handler(event:, context:)
   Path.path_maps[:bucket] = "s3://#{ENV["AWS_BUCKET"]}/{TOPLEVEL}/{SUBPATH}"
   Path.path_maps[:default] = :bucket
 
-  TmpFile.tmpdir = Path.setup('/tmp')
-  Open.sensible_write_dir = Path.setup('/tmp/sensible_write')
 
   require 'scout/workflow'
   require 'scout/aws/s3'
@@ -27,6 +25,9 @@ def lambda_handler(event:, context:)
     return workflow.task_info(inputs["task_name"])
   else
     Workflow.job_cache.clear
+
+    TmpFile.tmpdir = Path.setup('/tmp')
+    Open.sensible_write_dir = Path.setup('/tmp/sensible_write')
 
     if path
       job = Step.load path
@@ -56,7 +57,7 @@ def lambda_handler(event:, context:)
         job.load_info unless job.status == :done
         {result: job.load}
       elsif job.error?
-        {exception: job.exception, error: job.exception.message}
+        {exception: job.exception, error: job.messages.last}
       elsif job.started?
         {job: job.path, info: job.info, status: job.info[:status] }
       elsif queue
