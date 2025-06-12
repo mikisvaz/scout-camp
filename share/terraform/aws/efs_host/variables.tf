@@ -1,7 +1,11 @@
 variable "network" {
   description = "Name of the remote state block to use for the network"
 }
-
+variable "instance_type" {
+  description = "Instance to use"
+  type = string
+  default = "t2.micro"
+}
 variable "efs" {
   description = "Name of the remote state block to use for the EFS"
 }
