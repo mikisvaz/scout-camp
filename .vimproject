@@ -24,25 +24,23 @@ scout-camp=/$PWD filter="*" {
   }
  }
  scout_commands=scout_commands {
+  find
   offsite
   sync
-  find
-
   terraform=terraform{
-   list
-   add=add{
-    relay
-    lambda
-    host
-    fargate
-   }
-   status
-   outputs
    apply
-   plan
    destroy
-   remove
    lambda_task
+   list
+   outputs
+   plan
+   remove
+   status
+   task
+   add=add{
+    lambda
+    relay
+   }
   }
  }
  share=share {
