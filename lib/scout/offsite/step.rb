@@ -13,7 +13,7 @@ module OffsiteStep
                               file = ".scout/tmp/step_inputs/#{workflow}/#{task_name}/#{name}"
                               TmpFile.with_path do |inputs_dir|
                                 save_inputs(inputs_dir)
-                                SSHLine.rsync(inputs_dir, file, target: server, directory: true)
+                                SSHLine.rsync(inputs_dir, file, target: server, directory: inputs_dir.directory?)
                               end
                               file
                             end

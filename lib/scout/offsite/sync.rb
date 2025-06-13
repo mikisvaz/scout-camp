@@ -37,8 +37,8 @@ located = located.each{|path| path << "/" if path.directory? && ! path.end_with?
     cmd = 'rsync '
     cmd << rsync_args
     cmd << '-nv ' if dry_run
-    cmd << (source ? [source, source_path] * ":" : source_path) << " "
-    cmd << (target ? [target, target_path] * ":" : target_path) << " "
+    cmd << (source ? [source, "'" + source_path + "'"] * ":" : "'" + source_path + "'") << " "
+    cmd << (target ? [target, "'" + target_path + "'"] * ":" : "'" + target_path + "'") << " "
 
     CMD.cmd_log(cmd, :log => Log::HIGH)
   end

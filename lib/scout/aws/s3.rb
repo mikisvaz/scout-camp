@@ -286,9 +286,9 @@ module Open
       end
 
       if Open.directory?(source)
-        cmd = "aws s3 sync #{sync_args * " "} #{source} #{target}"
+        cmd = "aws s3 sync #{sync_args * " "} '#{source}' '#{target}'"
       else
-        cmd = "aws s3 cp #{source} #{target}"
+        cmd = "aws s3 cp '#{source}' '#{target}'"
       end
       case other
       when String
@@ -296,7 +296,7 @@ module Open
       when Array
         cmd << " " << other * " "
       end
-      cmd << " && rm -Rf #{source}" if delete && ! files
+      cmd << " && rm -Rf '#{source}'" if delete && ! files
 
       if print
         cmd
