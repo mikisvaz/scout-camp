@@ -24,8 +24,10 @@ module Open
     def self.claim_uri(uri)
       if Path === uri and not uri.located?
         is_s3?(uri.find)
-      else
+      elsif String === uri
         is_s3? uri
+      else
+        false
       end
     end
 
