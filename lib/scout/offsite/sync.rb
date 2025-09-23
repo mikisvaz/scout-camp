@@ -11,14 +11,21 @@ class SSHLine
       relocated.identify
     end
 
-    SSHLine.scout server, <<-EOF
-map = :#{map}
+    located, identified = SSHLine.scout server, <<-EOF
+map = #{map.nil? ? "nil" : ":#{map}" }
 paths = #{paths}
 located = paths.collect{|p| Path.setup(p).find(map) }
-identified = paths.collect{|p| Resource.identify(p) }
-located = located.each{|path| path << "/" if path.directory? && ! path.end_with?('/') }
+located = located.collect{|p| p.exists? ? p : nil }
+identified = paths.collect{|p| Resource.identify(p) if p }
+located = located.each{|path| path << "/" if path && path.directory? && ! path.end_with?('/') }
 [located, identified]
     EOF
+
+    identified.zip(paths).each do |ip,p|
+      ip.pkgdir = p.pkgdir if Path === p
+    end
+
+    [located, identified]
   end
 
   def self.rsync(source_path, target_path, directory: false, source: nil, target: nil, dry_run: false, hard_link: false)
