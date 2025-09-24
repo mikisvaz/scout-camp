@@ -21,6 +21,14 @@ scout-camp=/$PWD filter="*" {
     sync.rb
     resource.rb
    }
+
+   render=render{
+    resource.rb
+    helpers.rb
+    engine.rb
+   }
+   render.rb
+
   }
  }
  scout_commands=scout_commands {
