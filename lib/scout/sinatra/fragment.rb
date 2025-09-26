@@ -268,7 +268,7 @@ end
 
 SinatraScoutParameters.register_common_parameter(:_fragment, :string)
 
-SinatraScoutRender.register_post_processing do |step|
+SinatraScoutPostProcessing.register_post_processing do |step|
   if _fragment
     process_fragment(_fragment)
   end

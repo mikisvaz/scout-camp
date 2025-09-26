@@ -1,3 +1,4 @@
+require_relative 'base/helpers'
 require_relative 'base/headers'
 require_relative 'base/parameters'
 require_relative 'base/assets'
@@ -5,17 +6,9 @@ require_relative 'base/session'
 require_relative '../render/engine'
 
 module SinatraScoutBase
-  class << self
-    attr_accessor :post_processing_blocks
-
-    def register_post_processing(&block)
-      @post_processing_blocks ||= []
-      @post_processing_blocks << block
-    end
-  end
-
   def self.registered(app)
     app.helpers ScoutRenderHelpers
+    app.register SinatraScoutHelpers
 
     app.register SinatraScoutHeaders
     app.register SinatraScoutParameters
@@ -23,29 +16,6 @@ module SinatraScoutBase
     app.register SinatraScoutSession
 
     app.helpers do
-      def json_halt(status, object = nil)
-        status, object = 200, status if object.nil? 
-        content_type 'application/json'
-        halt status, (object.is_a?(String) ? {message: object}.to_json : object.to_json)
-      end
-
-      def html_halt(status, text = nil)
-        status, text = 200, status if text.nil? 
-        content_type 'text/html'
-        halt status, text
-      end
-
-      def return_json(object)
-        json_halt 200, object
-      end
-
-      def post_processing(step)
-        return unless SinatraScoutBase.post_processing_blocks
-        SinatraScoutBase.post_processing_blocks.each do |block|
-          self.instance_exec step, &block
-        end
-      end
-
       def html(content, layout = false, extension: %w(slim haml erb))
         return content unless _layout 
         return content unless layout 
@@ -111,13 +81,6 @@ module SinatraScoutBase
           end
         end
       end
-
-      def format_name(name)
-        parts = name.split("_")
-        hash = parts.pop
-        clean_name = parts * "_"
-        "<span class='name' jobname='#{ name }'>#{ clean_name }</span> <span class='hash'>#{ hash }</span>"
-      end
     end
 
     app.before do
@@ -168,7 +131,7 @@ module SinatraScoutBase
 end
 
 SinatraScoutParameters.register_common_parameter(:_layout, :boolean) do ! ajax?  end
-SinatraScoutParameters.register_common_parameter(:_format, :symbol) do ajax? ? :json : :html end
+SinatraScoutParameters.register_common_parameter(:_format, :symbol) do :html end
 SinatraScoutParameters.register_common_parameter(:_update, :symbol) do development? ? :development : nil  end
 SinatraScoutParameters.register_common_parameter(:_cache_type, :symbol, :asynchronous)
 SinatraScoutParameters.register_common_parameter(:_debug_js, :boolean)

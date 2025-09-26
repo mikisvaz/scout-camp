@@ -29,6 +29,26 @@ scout-camp=/$PWD filter="*" {
    }
    render.rb
 
+   sinatra=sinatra{
+    entity.rb
+
+    base=base{
+     helpers.rb
+     post_processing.rb
+     assets.rb
+     headers.rb
+     parameters.rb
+     session.rb
+    }
+    base.rb
+
+    fragment.rb
+    workflow.rb
+    auth.rb
+    finder.rb
+    knowledge_base.rb
+    tool.rb
+   }
   }
  }
  scout_commands=scout_commands {

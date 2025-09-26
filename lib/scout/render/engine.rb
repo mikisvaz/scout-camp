@@ -78,8 +78,8 @@ module ScoutRender
     step.exec_context.add_checks [template_file] 
 
     case update
-    when 'false', false, :wait, 'wait'
-    when 'true', true
+    when :false, 'false', false, :wait, 'wait'
+    when :true, 'true', true
       step.clean
     when nil
       step.clean if step.exec_context.outdated?
