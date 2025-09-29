@@ -6,7 +6,7 @@ module SinatraScoutWorkflow
   def self.registered(app)
     app.register SinatraScoutKnowledgeBase
 
-    app.set :_registered_workflows, {}
+    app.set :registered_workflows, {}
 
     # helpers for REST-style responses & params
     app.helpers do
@@ -24,29 +24,60 @@ module SinatraScoutWorkflow
         end
         inputs
       end
+
+      def workflow_render(workflow, template, params = {})
+        params[:workflow] = workflow
+        case template
+        when :tasks
+          render_template('tasks', params)
+        when Symbol, String
+          render_template("#{workflow}/#{template}", params.merge(task: template))
+        when Step
+          step = template
+          task_name = step.task_name
+          render_template("#{workflow}/#{template}", params.merge(task: template))
+        end
+      end
     end
 
     # expose method to register a workflow at runtime
     app.define_singleton_method(:add_workflow) do |workflow, opts = {}|
       name = workflow.to_s.split('::').last
-      settings._registered_workflows[name] = workflow
+      settings.registered_workflows[name] = workflow
       settings.knowledge_base = workflow.knowledge_base if workflow.knowledge_base
       ScoutRender.prepend_path name, workflow.libdir
 
       # GET /<workflow> - exports
       app.get "/#{name}" do
-        fmt = requested_format
-        if fmt == :json
-          content_type 'application/json'
-          can_stream = ENV['RBBT_WORKFLOW_TASK_STREAM'] == 'true'
-          data = {
+        case _format
+        when :json
+          exports = {
             stream: workflow.stream_exports,
             exec: workflow.exec_exports,
             synchronous: workflow.synchronous_exports,
             asynchronous: workflow.asynchronous_exports,
-            can_stream: !!can_stream
           }
-          data.to_json
+          exported_tasks = exports.values.flatten.compact.uniq
+
+          info = exported_tasks.inject({}) do |acc,tname|
+            acc[tname] = workflow.task_info(tname)
+            acc[tname][:export] = exports.find{|type,tasks| tasks.include?(tname) }.first
+            acc
+          end
+
+          json_halt 200, info
+        else
+          workflow_render(workflow, :tasks)
+          render_template('tasks', params.merge(workflow: workflow))
+        end
+      end
+      
+      # GET /<workflow> - exports
+      app.get "/#{name}/:task" do
+        task = consume_parameter(:task)
+        case _format
+        when :json
+          json_halt 200, workflow.task_info(task)
         else
           render_template('tasks', params.merge(workflow: workflow))
         end

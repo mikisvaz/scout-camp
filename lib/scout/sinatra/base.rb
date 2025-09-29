@@ -7,15 +7,39 @@ require_relative '../render/engine'
 
 module SinatraScoutBase
   def self.registered(app)
+    class << app
+      def post_get(...)
+        get(...)
+        post(...)
+      end
+    end
+
     app.helpers ScoutRenderHelpers
     app.register SinatraScoutHelpers
 
     app.register SinatraScoutHeaders
     app.register SinatraScoutParameters
+    app.register SinatraScoutPostProcessing
     app.register SinatraScoutAssets
     app.register SinatraScoutSession
 
     app.helpers do
+      def json_halt(status, object = nil)
+        status, object = 200, status if object.nil? 
+        content_type 'application/json'
+        halt status, (object.is_a?(String) ? {message: object}.to_json : object.to_json)
+      end
+
+      def html_halt(status, text = nil)
+        status, text = 200, status if text.nil? 
+        content_type 'text/html'
+        halt status, text
+      end
+
+      def return_json(object)
+        json_halt 200, object
+      end
+
       def html(content, layout = false, extension: %w(slim haml erb))
         return content unless _layout 
         return content unless layout 
@@ -27,10 +51,12 @@ module SinatraScoutBase
       end
 
       def render_template(template, options = {}, &block)
-        layout = IndiferentHash.process_options options, :layout, layout: _layout
+        layout, http_status = IndiferentHash.process_options options, :layout, :http_status, 
+          layout: _layout, http_status: 200
         options = IndiferentHash.setup(clean_params).merge(options) if defined?(clean_params)
         options = IndiferentHash.add_defaults options, 
           update: _update, 
+          persist_step: _step,
           cache: _cache_type != :none
 
         step = ScoutRender.render_template(template, options.merge(exec_context: self, run: false), &block)
@@ -44,19 +70,20 @@ module SinatraScoutBase
         when :asynchronous
           step.fork unless step.started?
         when :exec
-          halt 200, html(@step.exec, layout)
+          halt http_status, html(@step.exec, layout)
         end
 
         post_processing @step
 
         case @step.status
         when :error, 'error'
-          render_template('error', cache: false, step: @step)
+          Log.exception @step.exception
+          raise @step.exception
         when :done, 'done'
           @step.join
           halt 200, html(@step.load, layout)
         else
-          halt 200, render_template('wait', cache: false, step: @step)
+          halt 200, render_template('wait', cache: false, step: @step, http_status: 202)
         end
       end
 
@@ -77,7 +104,8 @@ module SinatraScoutBase
               block.call params
             end
           else
-            halt 200, alt
+            status = IndiferentHash.process_options params, :http_status, http_status: 200
+            halt status, alt
           end
         end
       end
@@ -92,7 +120,6 @@ module SinatraScoutBase
           params.merge!(post_data)
         rescue
           Log.exception $!
-        ensure
         end
       end
 
@@ -110,11 +137,11 @@ module SinatraScoutBase
       headers 'Access-Control-Allow-Origin' => '*'
     end
 
-    app.get "/" do
+    app.post_get "/" do
       render_template('main', clean_params)
     end
 
-    app.get "/main/*" do
+    app.post_get "/main/*" do
       $title = "Scout"
       splat = consume_parameter :splat
       splat.unshift 'main'
@@ -127,12 +154,20 @@ module SinatraScoutBase
         redirect to(uri)
       end
     end
+
+    app.error do
+      error = env['sinatra.error']
+      case _format
+      when :json
+        json_halt 500, {error: error.message, backtrace: error.backtrace}
+      else
+        render_or "error", error: error.message, backtrace: error.backtrace, http_status: 500 do
+          <<-EOF
+<pre>#{error.message}<pre/>
+<pre>#{error.backtrace * "\n"}<pre/>
+          EOF
+        end
+      end
+    end
   end
 end
-
-SinatraScoutParameters.register_common_parameter(:_layout, :boolean) do ! ajax?  end
-SinatraScoutParameters.register_common_parameter(:_format, :symbol) do :html end
-SinatraScoutParameters.register_common_parameter(:_update, :symbol) do development? ? :development : nil  end
-SinatraScoutParameters.register_common_parameter(:_cache_type, :symbol, :asynchronous)
-SinatraScoutParameters.register_common_parameter(:_debug_js, :boolean)
-SinatraScoutParameters.register_common_parameter(:_debug_css, :boolean)

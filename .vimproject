@@ -31,19 +31,21 @@ scout-camp=/$PWD filter="*" {
 
    sinatra=sinatra{
     entity.rb
+    workflow.rb
+    workflow.rb.save
 
     base=base{
-     helpers.rb
      post_processing.rb
+     parameters.rb
+
+     helpers.rb
      assets.rb
      headers.rb
-     parameters.rb
      session.rb
     }
     base.rb
 
     fragment.rb
-    workflow.rb
     auth.rb
     finder.rb
     knowledge_base.rb

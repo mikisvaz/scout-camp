@@ -1,15 +1,9 @@
 module SinatraScoutParameters
-  class << self
-    attr_accessor :common_parameters
-
-    def register_common_parameter(name, type = :string, default = nil, &block)
-      @common_parameters ||= []
-      @common_parameters << [name, type, default, block]
-    end
-  end
-
   def self.registered(app)
-    SinatraScoutParameters.common_parameters.each do |name,type,default,block|
+    app.set :common_parameters, []
+
+    app.define_singleton_method(:register_common_parameter) do |name,type=:string,default=nil,&block|
+      settings.common_parameters << name
       app.helpers do
         attr_accessor name
 
@@ -74,8 +68,16 @@ module SinatraScoutParameters
       end
 
       def process_common_parameters
-        SinatraScoutParameters.common_parameters.each{|name,*_| self.send(name) }
+        settings.common_parameters.each{|name,*_| self.send(name) }
       end
     end
+
+    app.register_common_parameter(:_layout, :boolean) do ! ajax?  end
+    app.register_common_parameter(:_format, :symbol) do :html end
+    app.register_common_parameter(:_update, :symbol) do development? ? :development : nil  end
+    app.register_common_parameter(:_cache_type, :symbol, :asynchronous)
+    app.register_common_parameter(:_debug_js, :boolean)
+    app.register_common_parameter(:_debug_css, :boolean)
+    app.register_common_parameter(:_step, :string)
   end
 end

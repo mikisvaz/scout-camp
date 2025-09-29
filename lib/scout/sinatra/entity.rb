@@ -52,21 +52,45 @@ module SinatraScoutEntity
       end
 
       def entity_template(entity, type = :entity, other = nil)
-        case type
-        when :entity
-          File.join('entity', entity.base_type.to_s)
-        when :action
-          File.join('entity', entity.base_type.to_s, other.to_s)
-        end 
+        file = case type
+               when :entity
+                 File.join('entity', entity.base_type.to_s)
+               when :action, :property
+                 File.join('entity', entity.base_type.to_s, other.to_s)
+               end 
+        return file if ScoutRender.exists?(file)
+
+        file = case type
+               when :entity
+                 File.join('entity', "Default")
+               when :action, :property
+                 File.join('entity', "Default", other.to_s)
+               end 
+        return file if ScoutRender.exists?(file)
+
+        raise "Template not found for entity type #{entity.base_type} action #{other}" if other
+        raise "Template not found for entity type #{entity.base_type}"
       end
 
       def entity_list_template(list, type = :entity, other = nil)
-        case type
-        when :entity
-          File.join('entity_list', list.base_type.to_s)
-        when :action
-          File.join('entity_list', list.base_type.to_s, other.to_s)
-        end 
+        file = case type
+               when :entity
+                 File.join('entity_list', list.base_type.to_s)
+               when :action
+                 File.join('entity_list', list.base_type.to_s, other.to_s)
+               end 
+        return file if ScoutRender.exists?(file)
+
+        file = case type
+               when :entity
+                 File.join('entity_list', 'Default')
+               when :action
+                 File.join('entity_list', 'Default', other.to_s)
+               end 
+        return file if ScoutRender.exists?(file)
+
+        raise "Template not found for entity list type #{list.base_type} action #{other}" if other
+        raise "Template not found for entity list type #{list.base_type}"
       end
 
       def render_entity_template(entity, type = :entity, other = nil, params = {})
@@ -134,73 +158,72 @@ module SinatraScoutEntity
 
         html_tag('a', text, link_options)
       end
+
+      def entity_parameter
+        entity_type = restore_element(consume_parameter(:entity_type))
+        entity_id = restore_element(consume_parameter(:splat)*"/")
+
+        setup_entity(entity_type, entity_id, params)
+      end
+
+      def entity_render(entity, type = :entity, other = nil, params = {})
+        template = entity_template(entity, type, other)
+
+        params = params.merge(entity: entity)
+        params = params.merge(check: entity.check) if entity.respond_to?(:check)
+        render_template(template, params)
+      end
+
+      def entity_list_render(list, list_id, type = :entity, other = nil, params = {})
+        template = entity_template(list, type, other)
+        render_template(template, params.merge(list: list, list_id: list_id))
+      end
     end
 
     #{{{ SINGLE ENTITIES
 
     # Entity report
-    app.get '/entity/:entity_type/:entity' do
-      entity_type = restore_element(consume_parameter(:entity_type))
-      entity_id = restore_element(consume_parameter(:entity))
-
-      # build entity instance with annotations collected from query string (use helpers)
-      entity = setup_entity(entity_type, entity_id, params)   # uses EntityRESTHelpers.setup_entity
-
-      params[:entity] = entity
+    app.post_get '/entity/:entity_type/*' do
+      entity = entity_parameter
 
       if _format == :json
-        # Simple JSON representation (entity.info + id)
         json_halt(200, { id: entity.to_s, info: entity.annotation_hash })
       else
-        # Render Haml template via ScoutRender and return content
-        content_type 'text/html'
-        begin
-          render_template("entity/#{entity.base_type}", params)
-        rescue TemplateNotFoundException
-          render_template("entity/Default", params)
-        end
+        entity_render(entity, :entity, nil, params)
       end
     end
 
-    # Entity action (page)
-    app.get '/entity_action/:entity_type/:action/:entity' do
-      entity_type = restore_element(consume_parameter(:entity_type))
-      entity_id = restore_element(consume_parameter(:entity))
+    app.post_get '/entity_action/:entity_type/:action/*' do
+      entity = entity_parameter
       action = consume_parameter(:action)
-
-      entity = setup_entity(entity_type, entity_id, params)
-
-      params[:entity] = entity
 
       if _format == :json
         json_halt(501, message: "Action JSON not implemented yet")
       else
-        render_template("entity/#{entity.base_type}/#{action}", params)
+        entity_render(entity, :action, action, params)
       end
     end
 
-    # Entity property (JSON)
-    app.get '/entity_property/:entity_type/:property/:entity' do
+    app.post_get '/entity_property/:entity_type/:property/*' do
+      entity = entity_parameter
       property = consume_parameter(:property)
-      entity_type = restore_element(consume_parameter(:entity_type))
-      entity_id = restore_element(consume_parameter(:entity))
 
       args = consume_parameter(:args)
       args = args ? (JSON.parse(args) rescue [args]) : []
 
-      entity = setup_entity(entity_type, entity_id, params)
-      begin
-        value = entity.send(property, *args)
-      rescue => e
-        json_halt(500, message: "Property call failed: #{e.message}")
+      value = entity.send(property, *args)
+
+      if _format == :json
+        json_halt(200, value)
+      else
+        entity_render(entity, :property, property, params)
       end
-      json_halt(200, value)
     end
 
     #{{{ LISTS OF ENTITIES
 
     # Entity list endpoints
-    app.get '/entity_list/:entity_type/:list_id' do
+    app.post_get '/entity_list/:entity_type/:list_id' do
       entity_type = restore_element(consume_parameter(:entity_type))
       list_id = restore_element(consume_parameter(:list_id))
 
@@ -228,7 +251,7 @@ module SinatraScoutEntity
     end
 
     # Entity list actions (page)
-    app.get '/entity_list_action/:entity_type/:action/:list_id' do
+    app.post_get '/entity_list_action/:entity_type/:action/:list_id' do
       entity_type = restore_element(consume_parameter(:entity_type))
       action = consume_parameter(:action)
       list_id = restore_element(consume_parameter(:list_id))
@@ -246,7 +269,7 @@ module SinatraScoutEntity
     end
 
     # Entity list property (page)
-    app.get '/entity_list_property/:entity_type/:property/:list_id' do
+    app.post_get '/entity_list_property/:entity_type/:property/:list_id' do
       entity_type = restore_element(consume_parameter(:entity_type))
       list_id = restore_element(consume_parameter(:list_id))
 

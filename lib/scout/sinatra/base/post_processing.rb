@@ -1,10 +1,18 @@
 module SinatraScoutPostProcessing
-  class << self
-    attr_accessor :post_processing_blocks
+  def self.registered(app)
+    app.set :post_processing_blocks, []
 
-    def register_post_processing(&block)
-      @post_processing_blocks ||= []
-      @post_processing_blocks << block
+    app.define_singleton_method(:register_post_processing) do |&block|
+      settings.post_processing_blocks << block
+    end
+
+    app.helpers do
+      def post_processing(step)
+        return unless settings.post_processing_blocks
+        settings.post_processing_blocks.each do |block|
+          self.instance_exec step, &block
+        end
+      end
     end
   end
 end

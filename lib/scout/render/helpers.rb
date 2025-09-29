@@ -71,7 +71,7 @@ module ScoutRenderHelpers
   def add_checks(checks)
     return unless Step === @step
     current_checks = @step.info[:checks] || []
-    current_checks += checks
+    current_checks += Array === checks ? checks : [checks]
     @step.set_info :checks, current_checks.uniq
   end
 

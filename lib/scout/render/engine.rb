@@ -31,13 +31,21 @@ module ScoutRender
       other: options, 
       name: "Step"
 
-    path, extension, update, check = IndiferentHash.process_options persist_options, 
-      :path, :extension, :update, :check,
+    step_name = IndiferentHash.process_options persist_options, :step
+
+    if step_name
+      dir = persist_options[:dir]
+      path = Path === dir ? dir[step_name] : File.join(dir, step_name)
+      persist_options[:path] = path
+    end
+    
+    path, extension, update = IndiferentHash.process_options persist_options, 
+      :path, :extension, :update,
       path: Persist.persistence_path(persist_options[:name], persist_options),
       extension: 'html',
       update: update
 
-    path = path.set_extension extension if extension
+    path = path.set_extension extension if extension and ! path.end_with?(".#{extension}")
 
     if block
       step = Step.new path, options, exec_context: exec_context, &block
@@ -61,8 +69,8 @@ module ScoutRender
   def self.render_template(template = nil, options = {}, &block)
     options = IndiferentHash.add_defaults options, persist_name: template
 
-    extension, update, run, cache = IndiferentHash.process_options options, 
-      :extension, :update, :run, :cache,
+    extension, update, run, cache, check = IndiferentHash.process_options options, 
+      :extension, :update, :run, :cache, :check,
       extension: %w(slim haml erb),
       run: true,
       cache: true
@@ -75,6 +83,7 @@ module ScoutRender
 
     @step = step = ScoutRender.render_step(template_file, options, &block)
 
+    step.exec_context.add_checks check if check
     step.exec_context.add_checks [template_file] 
 
     case update
