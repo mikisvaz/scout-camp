@@ -160,10 +160,15 @@ module SinatraScoutEntity
       end
 
       def entity_parameter
-        entity_type = restore_element(consume_parameter(:entity_type))
         entity_id = restore_element(consume_parameter(:splat)*"/")
 
-        setup_entity(entity_type, entity_id, params)
+        entity_type = consume_parameter(:entity_type)
+        if entity_type
+          entity_type = restore_element(entity_type)
+          setup_entity(entity_type, entity_id, params)
+        else
+          entity_id
+        end
       end
 
       def entity_render(entity, type = :entity, other = nil, params = {})

@@ -65,9 +65,9 @@ module SinatraScoutBase
         @step = step
 
         case _cache_type
-        when :synchronous
+        when :synchronous, :sync
           step.run
-        when :asynchronous
+        when :asynchronous, :async
           step.fork unless step.started?
         when :exec
           halt http_status, html(@step.exec, layout)
@@ -77,7 +77,7 @@ module SinatraScoutBase
 
         case @step.status
         when :error, 'error'
-          Log.exception @step.exception
+          Log.exception @step.exception if Exception === @step.exception
           raise @step.exception
         when :done, 'done'
           @step.join
@@ -150,6 +150,10 @@ module SinatraScoutBase
     end
 
     app.after do
+      if @step
+        headers 'SCOUT_RENDER_STEP' => @step.name
+      end
+
       if _update == :reload
         redirect to(uri)
       end

@@ -74,10 +74,15 @@ module SinatraScoutParameters
 
     app.register_common_parameter(:_layout, :boolean) do ! ajax?  end
     app.register_common_parameter(:_format, :symbol) do :html end
-    app.register_common_parameter(:_update, :symbol) do development? ? :development : nil  end
+    app.register_common_parameter(:_update, :symbol) do 
+      if development? && ! _step
+        :development  
+      end
+    end
     app.register_common_parameter(:_cache_type, :symbol, :asynchronous)
     app.register_common_parameter(:_debug_js, :boolean)
     app.register_common_parameter(:_debug_css, :boolean)
     app.register_common_parameter(:_step, :string)
+    app.register_common_parameter(:_)
   end
 end

@@ -83,16 +83,20 @@ module ScoutRender
 
     @step = step = ScoutRender.render_step(template_file, options, &block)
 
-    step.exec_context.add_checks check if check
-    step.exec_context.add_checks [template_file] 
+    checks = step.info[:checks] || []
+    checks << check if check
+    checks << [template_file] if check
+    checks = checks.flatten.uniq
+    step.info[:checks] = checks
 
     case update
     when :false, 'false', false, :wait, 'wait'
-    when :true, 'true', true
+    when :true, 'true', true, :reload, 'reload'
       step.clean
     when nil
-      step.clean if step.exec_context.outdated?
+      step.clean if step.path.outdated?(checks)
     else
+      step.clean if step.error? && step.recoverable_error?
       step.clean unless step.running?
     end
 
