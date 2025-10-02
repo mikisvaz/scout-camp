@@ -34,63 +34,85 @@ module SinatraScoutAssets
         html_tag('script', " ", :src => file, :type => 'text/javascript')
       end
 
-      def serve_js(compress = true)
-        if production? and compress and not @debug_js 
-          md5 = Misc.digest(recorded_js_files * ",")
-          filename = ScoutRender.cache_dir["all_js-#{md5}.js"].find
+      def serve_css
+        md5 = Misc.digest(recorded_css_files * ",")
+        filename = ScoutRender.cache_dir["all_css-#{md5}.css"].find
 
-          if not File.exist?(filename)
-            require 'uglifier'
-            Log.debug{ "Regenerating JS Compressed file: #{ filename }" }
-
-            text = recorded_js_files.collect{|file| 
-              if Open.remote?(file)
-                path = file
-              else
-                path = ScoutRender.find_js(file)
-                path = ScoutRender.find_js("public/#{file}") unless path.exists?
-              end
-
-              "//FILE: #{ File.basename(path) }\n" +  Open.read(path)
-            } * "\n"
-
-            FileUtils.mkdir_p File.dirname(filename) unless File.exist? File.dirname(filename)
-            #Open.write(filename, Uglifier.compile(text, :harmony => true))
-            Open.write(filename, text)
+        paths = recorded_css_files.collect do |file|
+          if Open.remote?(file)
+            path = file
+          else
+            path = ScoutRender.find_js(file)
+            path = ScoutRender.find_js("public/#{file}") unless path.exists?
           end
-
-          res = "<script src='/file/#{File.basename(filename)}' type='text/javascript' defer></script>"
-        else
-          res = recorded_js_files.collect{|file|
-            link_js(file)
-          } * "\n"
+          path
         end
 
-        recorded_js_files.clear
+        update = _update == :css
 
-        res
-      end
+        Persist.persist 'all', :text, prefix: 'css', path: filename, other: {files: paths}, check: paths, update: update do
+          Log.debug{ "Regenerating CSS Compressed file: #{ filename }" }
+          paths.collect do |path|
+            TmpFile.with_file do |tmpfile|
+              cmd_str = "-i '#{path}' -o '#{tmpfile}'"
+              CMD.cmd(:tailwindcss, cmd_str)
+              Open.read tmpfile
+            end
+          end * "\n"
+        end
 
-      def serve_css
-        res = recorded_css_files.collect{|file|
-          link_css(file)
-        } * "\n"
+        res = "<link href='/file/#{File.basename(filename)}' rel='stylesheet' type='text/css'/>"
 
         recorded_css_files.clear
 
         res
       end
 
-      def mime_file(file)
+      def serve_js
+        md5 = Misc.digest(recorded_js_files * ",")
+        filename = ScoutRender.cache_dir["all_js-#{md5}.js"].find
+
+        paths = recorded_js_files.collect do |file|
+          if Open.remote?(file)
+            path = file
+          else
+            path = ScoutRender.find_js(file)
+            path = ScoutRender.find_js("public/#{file}") unless path.exists?
+          end
+          path
+        end
+
+        update = _update == :js
+
+        Persist.persist 'all', :text, prefix: 'js', path: filename, other: {files: paths}, check: paths, update: update do
+          Log.debug{ "Regenerating JS Compressed file: #{ filename }" }
+          cmd_str = "terser ".dup
+          paths.collect do |path|
+            cmd_str << "'#{path}' "
+          end
+          #cmd_str << "-o '#{filename}' --compress --mangle"
+          cmd_str << "-o '#{filename}' --compress --mangle"
+          CMD.cmd(:npx, cmd_str)
+        end
+
+        res = "<script src='/file/#{File.basename(filename)}' type='text/javascript' defer></script>"
+
+        recorded_js_files.clear
+
+        res
+      end
+
+      def mime_file(file, content_type = nil)
         if file.end_with?('.js')
           content_type = 'text/javascript'
         elsif file.end_with?('.css')
           content_type = 'text/css'
         else
           content_type = 'text/html'
-        end
+        end if content_type.nil?
+
         Log.debug "Serving #{file} as #{content_type}"
-        content_type content_type
+        content_type content_type if content_type
         send_file(file)
       end
     end
@@ -105,10 +127,11 @@ module SinatraScoutAssets
       name = splat * "/"
 
       file = ScoutRender.find_resource(name)
+      status 200
       mime_file file
     end
 
-    app.get '/stylesheets/*' do
+    app.get '/(stylesheets|css)/*' do
       splat = consume_parameter(:splat)
 
       splat.unshift 'public/css'
@@ -121,7 +144,7 @@ module SinatraScoutAssets
         content_type 'text/css', :charset => 'utf-8'
         cache_control :public, :max_age => 360000 if production?
 
-        mime_file file
+        mime_file file, false
       else
         splat.shift
 
@@ -145,7 +168,8 @@ module SinatraScoutAssets
 
       file = ScoutRender.find_resource(name)
       content_type 'application/javascript'
-      mime_file file
+      status 200
+      mime_file file, false
     end
 
     app.get '/file/*' do
