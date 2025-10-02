@@ -36,6 +36,17 @@ module SinatraScoutParameters
                     value.to_f 
                   when :boolean
                     value.to_s.downcase == "true" unless value.nil?
+                  when :escaped
+                    restore_element(value) if value
+                  when :array
+                    value = case value
+                            when Array
+                              value
+                            when String
+                              value.split(",")
+                            else
+                              value
+                            end
                   end
 
           self.instance_variable_set(:"@#{name}", value)
@@ -44,6 +55,25 @@ module SinatraScoutParameters
     end
 
     app.helpers do
+      def clean_element(elem)
+        elem.to_s.gsub('&', '--AND--').
+          gsub('/', '-..-').
+          gsub("|", '-...-').
+          gsub('%', 'o-o').
+          gsub('[','(.-(').
+          gsub(']',').-)')
+      end
+
+      def restore_element(elem)
+        CGI.unescape(CGI.unescape(
+          elem.gsub('--AND--', '&').
+          gsub('-..-', '/').
+          gsub('-...-', '|').
+          gsub('o-o', '%').
+          gsub('(.-(','[').
+          gsub(').-)',']')
+        ))
+      end
 
       def consume_parameter(name, source = params)
         return nil if source.nil?
@@ -72,6 +102,7 @@ module SinatraScoutParameters
       end
     end
 
+    app.register_common_parameter(:splat, :array)
     app.register_common_parameter(:_layout, :boolean) do ! ajax?  end
     app.register_common_parameter(:_format, :symbol) do :html end
     app.register_common_parameter(:_update, :symbol) do 

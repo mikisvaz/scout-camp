@@ -35,7 +35,7 @@ module SinatraScoutHeaders
 
       def clean_uri(uri)
         return nil if uri.nil?
-        remove_GET_param(uri, ["_update", "_", "_layout"])
+        remove_GET_param(uri, ["_update", "_"])
       end
 
       def original_uri

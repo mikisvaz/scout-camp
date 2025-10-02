@@ -68,8 +68,8 @@ module SinatraScoutEntity
                end 
         return file if ScoutRender.exists?(file)
 
-        raise "Template not found for entity type #{entity.base_type} action #{other}" if other
-        raise "Template not found for entity type #{entity.base_type}"
+        raise TemplateNotFoundException, "Template not found for entity type #{entity.base_type} action #{other}" if other
+        raise TemplateNotFoundException, "Template not found for entity type #{entity.base_type}"
       end
 
       def entity_list_template(list, type = :entity, other = nil)
@@ -159,16 +159,18 @@ module SinatraScoutEntity
         html_tag('a', text, link_options)
       end
 
-      def entity_parameter
-        entity_id = restore_element(consume_parameter(:splat)*"/")
+      def entity
+        return nil unless entity_type
+        return nil unless splat
+        @entity ||= begin
+                      entity_id = restore_element(splat*"/")
 
-        entity_type = consume_parameter(:entity_type)
-        if entity_type
-          entity_type = restore_element(entity_type)
-          setup_entity(entity_type, entity_id, params)
-        else
-          entity_id
-        end
+                      if entity_type
+                        setup_entity(entity_type, entity_id, params)
+                      else
+                        entity_id
+                      end
+                    end
       end
 
       def entity_render(entity, type = :entity, other = nil, params = {})
@@ -189,8 +191,6 @@ module SinatraScoutEntity
 
     # Entity report
     app.post_get '/entity/:entity_type/*' do
-      entity = entity_parameter
-
       if _format == :json
         json_halt(200, { id: entity.to_s, info: entity.annotation_hash })
       else
@@ -198,146 +198,62 @@ module SinatraScoutEntity
       end
     end
 
-    app.post_get '/entity_action/:entity_type/:action/*' do
-      entity = entity_parameter
-      action = consume_parameter(:action)
-
+    app.post_get '/entity_action/:entity_type/:entity_action/*' do
       if _format == :json
         json_halt(501, message: "Action JSON not implemented yet")
       else
-        entity_render(entity, :action, action, params)
+        entity_render(entity, :action, entity_action, params)
       end
     end
 
-    app.post_get '/entity_property/:entity_type/:property/*' do
-      entity = entity_parameter
-      property = consume_parameter(:property)
-
+    app.post_get '/entity_property/:entity_type/:entity_property/*' do
+      entity
+      entity_property
       args = consume_parameter(:args)
-      args = args ? (JSON.parse(args) rescue [args]) : []
 
-      value = entity.send(property, *args)
+      if args
+        prop_params = JSON.parse(args) rescue [args]
+      else
+        param_names = consume_parameter(:params)
+        if param_names
+          prop_params = param_names{|param| consume_parameter(param) }
+        else
+          prop_params = params.values
+        end
+      end
+
+      value = entity.send(entity_property, *prop_params)
+
+      if Step === value
+        job = value
+        initiate_step job, _layout
+
+        case _format
+        when :job
+          redirect to(job_url(job))
+        when :json
+          serve_step_json job
+        else
+          serve_step job, _layout do
+            entity_render(entity, :property, entity_property, params)
+          end
+        end
+      end
 
       if _format == :json
         json_halt(200, value)
       else
-        entity_render(entity, :property, property, params)
-      end
-    end
-
-    #{{{ LISTS OF ENTITIES
-
-    # Entity list endpoints
-    app.post_get '/entity_list/:entity_type/:list_id' do
-      entity_type = restore_element(consume_parameter(:entity_type))
-      list_id = restore_element(consume_parameter(:list_id))
-
-      list = knowledge_base.load_list(list_id, entity_type.split(":").first)
-
-      params[:list] = list
-      params[:list_id] = list_id
-
-      case _format
-      when :json
-        json_halt(200, {entities: list, info: list.annotation_hash, types: list.annotation_types})
-      when :html
-        content_type 'text/html'
         begin
-          render_template("entity_list/#{entity_type}", params)
-        rescue TemplateNotFoundException => e
-          render_template("entity_list/Default", params)
+          entity_render(entity, :property, entity_property, params)
         rescue TemplateNotFoundException
-          raise e
+          json_halt(200, value)
         end
-      else
-        content_type 'text/tab-separated-values'
-        list.to_s
       end
     end
 
-    # Entity list actions (page)
-    app.post_get '/entity_list_action/:entity_type/:action/:list_id' do
-      entity_type = restore_element(consume_parameter(:entity_type))
-      action = consume_parameter(:action)
-      list_id = restore_element(consume_parameter(:list_id))
-
-      list = knowledge_base.load_list(list_id, entity_type.split(":").first)
-
-      params[:list] = list
-      params[:list_id] = list_id
-
-      if _format == :json
-        json_halt(501, message: "List action JSON not implemented")
-      else
-        return_html("entity_list_action/#{entity.base_type}", params)
-      end
-    end
-
-    # Entity list property (page)
-    app.post_get '/entity_list_property/:entity_type/:property/:list_id' do
-      entity_type = restore_element(consume_parameter(:entity_type))
-      list_id = restore_element(consume_parameter(:list_id))
-
-      list = knowledge_base.load_list(list_id, entity_type.split(":").first)
-
-      params[:list] = list
-      params[:list_id] = list_id
-
-      args = consume_parameter(:args)
-      args = args ? (JSON.parse(args) rescue [args]) : []
-
-      begin
-        value = list.send(property, *args)
-      rescue => e
-        json_halt(500, message: "Property call failed: #{e.message}")
-      end
-      json_halt(200, value)
-    end
-
-    # Map rendering
-    app.get '/entity_map/:entity_type/:column/:map_id' do
-      entity_type = restore_element(consume_parameter(:entity_type))
-      column = restore_element(consume_parameter(:column))
-      map_id = restore_element(consume_parameter(:map_id))
-
-      map = knowledge_base.load_map(entity_type.split(":").first, column, map_id, nil)
-
-      fmt = _format
-      case fmt
-      when :json
-        respond_with_json(map.to_h) rescue respond_with_json({ error: "Map serialization failed" })
-      when :html
-        render_html_template("entity_map/#{entity_type.split(':').first}/Default", map: map, map_id: map_id)
-      else
-        content_type 'text/tab-separated-values'
-        map.to_s
-      end
-    end
-
-    # Favourite endpoints (simple JSON)
-    app.post '/add_favourite_entity/:entity_type/:entity' do
-      entity_type = restore_element(consume_parameter(:entity_type))
-      entity_id = restore_element(consume_parameter(:entity))
-      entity = setup_entity(entity_type, entity_id, params)
-      add_favourite_entity(entity)
-      status 200
-      body({ok: true}.to_json)
-    end
-
-    app.post '/remove_favourite_entity/:entity_type/:entity' do
-      entity_type = restore_element(consume_parameter(:entity_type))
-      entity_id = restore_element(consume_parameter(:entity))
-      entity = setup_entity(entity_type, entity_id, params)
-      remove_favourite_entity(entity)
-      status 200
-      body({ok: true}.to_json)
-    end
-
-    app.get '/favourite_entities' do
-      json_halt(401, message: "Login required") unless respond_to?(:user) && user
-      respond_with_json(favourite_entities)
-    end
-
-    # more endpoints can be added similarly...
+    app.register_common_parameter(:entity_type, :escaped)
+    app.register_common_parameter(:entity_action, :escaped)
+    app.register_common_parameter(:entity_property, :escaped)
+    app.register_common_parameter(:_format, :symbol) do entity_property ? :json : :html end
   end
 end

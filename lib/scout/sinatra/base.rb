@@ -50,19 +50,10 @@ module SinatraScoutBase
         end
       end
 
-      def render_template(template, options = {}, &block)
-        layout, http_status = IndiferentHash.process_options options, :layout, :http_status, 
-          layout: _layout, http_status: 200
-        options = IndiferentHash.setup(clean_params).merge(options) if defined?(clean_params)
-        options = IndiferentHash.add_defaults options, 
-          update: _update, 
-          persist_step: _step,
-          cache: _cache_type != :none
-
-        step = ScoutRender.render_template(template, options.merge(exec_context: self, run: false), &block)
-        return html step, layout if String === step
-
-        @step = step
+      def initiate_step(step, layout = nil, http_status = 200)
+        step.clean if _update == :clean
+        step.recursive_clean if _update == :recursive_clean
+        step.clean if step.recoverable_error? && _update
 
         case _cache_type
         when :synchronous, :sync
@@ -70,21 +61,89 @@ module SinatraScoutBase
         when :asynchronous, :async
           step.fork unless step.started?
         when :exec
-          halt http_status, html(@step.exec, layout)
+          halt http_status, html(step.exec, layout)
         end
+
+        step.join if step.done?
+
+        step
+      end
+
+      def serve_step(step, layout = nil, http_status = 200, &block)
+        layout = _layout if layout.nil?
+        case step.status
+        when :error, 'error'
+          Log.exception step.exception if Exception === step.exception
+          raise step.exception
+        when :done, 'done'
+          step.join
+          if block_given?
+            block.call step
+          else
+            halt http_status || 200, html(step.load, layout)
+          end
+        else
+          render_or('wait', "Waiting on #{step.path}", cache: false, step: step, http_status: 202)
+        end
+      end
+
+      def serve_step_info(step)
+        case step.status
+        when 'done'
+          json_halt 200, step.info
+        when 'error'
+          json_halt 500, step.info
+        else
+          json_halt 202, step.info
+        end
+      end
+
+      def serve_step_json(step)
+        case step.status
+        when 'done'
+          json_halt 200, step.load.to_json
+        when 'error'
+          json_halt 500, step.info
+        else
+          json_halt 202, step.info
+        end
+      end
+
+      def serve_step_raw(step)
+        case step.status
+        when 'done'
+          status 200
+          mime_file step.path.find
+        when 'error'
+          json_halt 500, step.info
+        else
+          json_halt 202, step.info
+        end
+      end
+
+
+      def render_template(template, options = {}, &block)
+        layout, http_status = IndiferentHash.process_options options, :layout, :http_status,
+          layout: _layout, http_status: 200
+        options = IndiferentHash.setup(clean_params).merge(options) if defined?(clean_params)
+        options = IndiferentHash.add_defaults options,
+          update: _update,
+          persist_step: _step,
+          cache: _cache_type != :none
+
+        step = ScoutRender.render_template(template, options.merge(exec_context: self, run: false), &block)
+        if String === step
+          status http_status
+          return html step, layout
+        end
+
+        @step = step
+
+        initiate_step step, layout, http_status
 
         post_processing @step
 
-        case @step.status
-        when :error, 'error'
-          Log.exception @step.exception if Exception === @step.exception
-          raise @step.exception
-        when :done, 'done'
-          @step.join
-          halt 200, html(@step.load, layout)
-        else
-          halt 200, render_template('wait', cache: false, step: @step, http_status: 202)
-        end
+        serve_step step, layout, http_status
       end
 
       def render_partial(template, options = {}, &block)
@@ -110,6 +169,8 @@ module SinatraScoutBase
         end
       end
     end
+
+    #{{{ HOOKS
 
     app.before do
       $script_name = script_name
@@ -137,6 +198,34 @@ module SinatraScoutBase
       headers 'Access-Control-Allow-Origin' => '*'
     end
 
+    app.after do
+      if @step
+        headers 'SCOUT_RENDER_STEP' => @step.name
+      end
+
+      if _update == :reload
+        redirect to(fullpath)
+      end
+    end
+
+    app.error  do
+      error = env['sinatra.error']
+      case _format
+      when :json
+        json_halt 500, {class: error.class.to_s, error: error.message, backtrace: error.backtrace}
+      else
+        render_or "error", error: error.message, backtrace: error.backtrace, http_status: 500 do
+          <<-EOF
+<pre>#{error.class}<pre/>
+<pre>#{error.message}<pre/>
+<pre>#{error.backtrace * "\n"}<pre/>
+          EOF
+        end
+      end
+    end
+
+    #{{{ ROUTES
+
     app.post_get "/" do
       render_template('main', clean_params)
     end
@@ -149,29 +238,5 @@ module SinatraScoutBase
       render_template(template, clean_params)
     end
 
-    app.after do
-      if @step
-        headers 'SCOUT_RENDER_STEP' => @step.name
-      end
-
-      if _update == :reload
-        redirect to(uri)
-      end
-    end
-
-    app.error do
-      error = env['sinatra.error']
-      case _format
-      when :json
-        json_halt 500, {error: error.message, backtrace: error.backtrace}
-      else
-        render_or "error", error: error.message, backtrace: error.backtrace, http_status: 500 do
-          <<-EOF
-<pre>#{error.message}<pre/>
-<pre>#{error.backtrace * "\n"}<pre/>
-          EOF
-        end
-      end
-    end
   end
 end

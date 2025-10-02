@@ -33,10 +33,59 @@ module SinatraScoutWorkflow
         when Symbol, String
           render_template("#{workflow}/#{template}", params.merge(task: template))
         when Step
-          step = template
-          task_name = step.task_name
-          render_template("#{workflow}/#{template}", params.merge(task: template))
+          job = template
+          task_name = job.task_name
+          render_template("#{workflow}/#{task_name}", params.merge(task: task_name, job: job))
         end
+      end
+
+      def workflow_template(workflow, task, type = :job)
+        workflow_name = Workflow === workflow ? workflow.name : workflow.to_s
+        file = File.join(workflow_name, task, type.to_s)
+        return file if ScoutRender.exists?(file)
+
+        file = File.join(workflow_name, type.to_s)
+        return file if ScoutRender.exists?(file)
+
+        file = File.join(type.to_s)
+        return file if ScoutRender.exists?(file)
+
+        raise TemplateNotFoundException, "Workflow template not fond for workflow #{workflow_name} task #{task} type #{type}"
+      end
+
+      def render_job(workflow, job, params = {})
+        task = job.task_name
+        template = workflow_template(workflow, task)
+        render_template(template, params.merge(job: job, task: task, workflow: workflow))
+      end
+
+      def job_url(job)
+        workflow = job.workflow
+        task = job.task_name
+        name = job.name
+        workflow_name = Workflow === workflow ? workflow.name : workflow.to_s
+
+        '/' + [workflow_name, task, name] * "/"
+      end
+
+      def workflow_name
+        return nil unless task_name
+        return fullpath.split("/")[1]
+      end
+
+      def workflow
+        return nil unless workflow_name
+        Kernel.const_get workflow_name
+      end
+
+      def job_name
+        splat * "/"
+      end
+
+      def job
+        return nil unless task_name
+        return nil unless job_name
+        job = workflow.load_job task_name, job_name
       end
     end
 
@@ -48,212 +97,29 @@ module SinatraScoutWorkflow
       ScoutRender.prepend_path name, workflow.libdir
 
       # GET /<workflow> - exports
-      app.get "/#{name}" do
+      app.get "/#{name}/:task_name/*" do
+        job = workflow.load_job task_name, job_name
+
         case _format
+        when :info
+          serve_step_info job
         when :json
-          exports = {
-            stream: workflow.stream_exports,
-            exec: workflow.exec_exports,
-            synchronous: workflow.synchronous_exports,
-            asynchronous: workflow.asynchronous_exports,
-          }
-          exported_tasks = exports.values.flatten.compact.uniq
-
-          info = exported_tasks.inject({}) do |acc,tname|
-            acc[tname] = workflow.task_info(tname)
-            acc[tname][:export] = exports.find{|type,tasks| tasks.include?(tname) }.first
-            acc
+          serve_step_json job
+        when :raw
+          serve_step_raw job
+        else
+          serve_step job, _layout, params do
+            begin
+              render_job workflow, job, params
+            rescue TemplateNotFoundException
+              halt 200, "Job #{job.short_path} done"
+            end
           end
-
-          json_halt 200, info
-        else
-          workflow_render(workflow, :tasks)
-          render_template('tasks', params.merge(workflow: workflow))
-        end
-      end
-      
-      # GET /<workflow> - exports
-      app.get "/#{name}/:task" do
-        task = consume_parameter(:task)
-        case _format
-        when :json
-          json_halt 200, workflow.task_info(task)
-        else
-          render_template('tasks', params.merge(workflow: workflow))
-        end
-      end
-
-      # GET /<workflow>/documentation
-      app.get "/#{name}/documentation" do
-        fmt = requested_format
-        if fmt == :json
-          content_type 'application/json'
-          (workflow.documentation || {}).to_json
-        else
-          status 406
-          "HTML not implemented by REST component"
-        end
-      end
-
-      # GET /<workflow>/:task/info
-      app.get "/#{name}/:task/info" do
-        task = consume_parameter(:task)
-        unless workflow.tasks.include?(task.to_sym)
-          return json_halt(404, message: "Task not found")
-        end
-        fmt = requested_format
-        if fmt == :json
-          content_type 'application/json'
-          workflow.task_info(task.to_sym).to_json
-        else
-          status 406
-          "HTML not implemented by REST component"
-        end
-      end
-
-      # GET /<workflow>/:task/dependencies
-      app.get "/#{name}/:task/dependencies" do
-        task = consume_parameter(:task)
-        unless workflow.tasks.include?(task.to_sym)
-          return json_halt(404, message: "Task not found")
-        end
-        fmt = requested_format
-        if fmt == :json
-          content_type 'application/json'
-          deps = workflow.task_dependencies[task.to_sym]
-          (deps || []).to_json
-        else
-          status 406
-          "HTML not implemented by REST component"
-        end
-      end
-
-      app.get "/#{name}/:task" do
-        task = consume_parameter(:task)
-        unless workflow.tasks.include?(task.to_sym)
-          return json_halt(404, message: "Task not found")
-        end
-
-        render_template('form', workflow: workflow, task: task)
-      end
-
-      # POST /<workflow>/:task  -> create a job (REST returns job metadata)
-      app.post "/#{name}/:task" do
-        task = consume_parameter(:task)
-        jobname = consume_parameter(:jobname)
-        unless workflow.tasks.include?(task.to_sym)
-          return json_halt(404, message: "Task not found")
-        end
-
-        # collect inputs from params (leave raw values and file hashes as-is)
-        inputs = consume_task_parameters_for(workflow, task, params)
-
-        # create job via workflow.job(task, jobname, inputs)
-        # the workflow implementation is expected to provide `job`
-        begin
-          job = workflow.job(task.to_sym, jobname, inputs)
-        rescue Exception => e
-          return json_halt(500, message: "Failed to create job: #{e.message}")
-        end
-
-        job.fork
-
-        fmt = requested_format
-        if fmt == :json
-          content_type 'application/json'
-          {
-            jobname: job.respond_to?(:name) ? job.name : job.to_s,
-            path: job.respond_to?(:path) ? job.path : nil,
-            status: (job.respond_to?(:status) ? job.status : 'created'),
-            info: (job.respond_to?(:info) ? job.info : {})
-          }.to_json
-        else
-        end
-      end
-
-      # GET /<workflow>/:task/:job - job status/info
-      app.get "/#{name}/:task/:job" do
-        task = consume_parameter(:task)
-        job_id = consume_parameter(:job)
-        unless workflow.tasks.include?(task.to_sym)
-          return json_halt(404, message: "Task not found")
-        end
-
-        path = workflow.directory[task][job_id]
-
-        if not path.exists?
-          return json_halt(404, message: "Job not found")
-        else
-          job = Step.load path
-        end
-
-        fmt = requested_format
-        case fmt
-        when :json
-          content_type 'application/json'
-          if job.respond_to?(:info)
-            job.info.to_json
-          else
-            { job: job_id, status: (job.respond_to?(:status) ? job.status : 'unknown') }.to_json
-          end
-        else
-          render_template('job_result', workflow: workflow, task: task, result: job.load, job: job, jobname: job.name)
-        end
-      end
-
-      # GET /<workflow>/:task/:job/files
-      app.get "/#{name}/:task/:job/files" do
-        task = consume_parameter(:task)
-        job_id = consume_parameter(:job)
-        unless workflow.tasks.include?(task.to_sym)
-          return json_halt(404, message: "Task not found")
-        end
-
-        path = workflow.directory[task][job_id]
-
-        if not path.exists?
-          return json_halt(404, message: "Job not found")
-        else
-          job = Step.load path
-        end
-
-        fmt = requested_format
-        case fmt
-        when :json
-          content_type 'application/json'
-          files = job.respond_to?(:files) ? job.files : []
-          files.to_json
-        else
-          status 406
-          "HTML not implemented by REST component"
-        end
-      end
-
-      # DELETE /<workflow>/:task/:job -> delete (clean) job
-      app.delete "/#{name}/:task/:job" do
-        task = consume_parameter(:task)
-        job_id = consume_parameter(:job)
-        unless workflow.tasks.include?(task.to_sym)
-          return json_halt(404, message: "Task not found")
-        end
-
-        path = workflow.directory[task][job_id]
-
-        if not path.exists?
-          return json_halt(404, message: "Job not found")
-        else
-          job = Step.load path
-        end
-
-        # attempt to clean
-        begin
-          job.clean if job.respond_to?(:clean)
-          status 200
-          body({ok: true}.to_json)
-        rescue => e
-          json_halt(500, message: "Failed to clean job: #{e.message}")
         end
       end
     end
+
+    app.register_common_parameter(:task_name, :symbol)
   end
 end
+

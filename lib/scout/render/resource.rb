@@ -25,6 +25,11 @@ module ScoutRender
     find_resource(name, extension: 'js')
   end
 
+  def self.find_css(name)
+    find_resource(name, extension: 'css')
+  end
+
+
   def self.find_sass(name)
     find_resource(name, extension: 'sass')
   end
