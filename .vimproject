@@ -31,6 +31,7 @@ scout-camp=/$PWD filter="*" {
 
    sinatra=sinatra{
     entity.rb
+    entity.rb.save
     workflow.rb
     workflow.rb.save
 

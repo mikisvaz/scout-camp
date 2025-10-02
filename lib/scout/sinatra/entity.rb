@@ -230,7 +230,7 @@ module SinatraScoutEntity
 
         case _format
         when :job
-          redirect to(job_url(job))
+          redirect to(add_GET_params(job_url(job), _layout: _layout))
         when :json
           serve_step_json job
         else

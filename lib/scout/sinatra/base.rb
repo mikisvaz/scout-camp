@@ -150,8 +150,6 @@ module SinatraScoutBase
         render_template(template, options.merge(layout: false, cache: false), &block)
       end
 
-      alias partial_render render_partial
-
       def render_or(template, alt=nil, params = {}, &block)
         begin
           render_template(template, params)

@@ -41,7 +41,11 @@ module SinatraScoutWorkflow
 
       def workflow_template(workflow, task, type = :job)
         workflow_name = Workflow === workflow ? workflow.name : workflow.to_s
-        file = File.join(workflow_name, task, type.to_s)
+        file = File.join(workflow_name, task.to_s, type.to_s)
+        return file if ScoutRender.exists?(file)
+
+        workflow_name = Workflow === workflow ? workflow.name : workflow.to_s
+        file = File.join(workflow_name, task.to_s)
         return file if ScoutRender.exists?(file)
 
         file = File.join(workflow_name, type.to_s)
