@@ -131,7 +131,7 @@ module SinatraScoutBase
           persist_step: _step,
           cache: _cache_type != :none
 
-        step = ScoutRender.render_template(template, options.merge(exec_context: self, run: false), &block)
+        step = ScoutRender.render_template(template, options.merge(exec_context: self, run: false, current_user: current_user), &block)
         if String === step
           status http_status
           return html step, layout

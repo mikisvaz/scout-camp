@@ -8,9 +8,9 @@ module SinatraScoutAuth
     app.use OmniAuth::Builder do
       client_id = Scout::Config.get :client, :google, :google_oauth, env:"GOOGLE_CLIENT_ID"
       client_secret = Scout::Config.get :secret, :google, :google_oauth, env:"GOOGLE_CLIENT_SECRET"
-      provider :google_oauth2, client_id, client_secret, 
-        access_type: 'offline', 
-        prompt: 'select_account', 
+      provider :google_oauth2, client_id, client_secret,
+        access_type: 'offline',
+        prompt: 'select_account',
         scope: 'email',
         setup: lambda { |env|
           puts "OmniAuth session: #{env['rack.session'].inspect}"
@@ -66,6 +66,60 @@ module SinatraScoutAuth
 
       def protected!
         render_or 'auth/missing', "Not authorized" unless authenticated?
+      end
+
+      def user_name
+        case current_user
+        when Hash
+          current_user[:name] || current_user['name'] || current_user[:email] || current_user['email']
+        when String
+          current_user
+        end
+      end
+
+      def user_dir
+        Scout.var.sinatra.users[user_name]
+      end
+
+      def user_file(file)
+        user_dir[file.to_s]
+      end
+
+      def user_save(file, content)
+        Open.sensible_write(user_file(file), content, force: true)
+      end
+
+      def user_load(file)
+        return nil unless user_file(file).exists?
+        user_file(file).read
+      end
+
+      def save_preferences
+        user_save(:preferences, preferences.to_json)
+      end
+
+      def load_preferences
+        return unless user_file(:preferences).exists?
+        session['preferences'] = JSON.parse(user_load(:preferences))
+      end
+
+      def record_preference(key, value)
+        preferences[key] = value
+        save_preferences if current_user
+        value
+      end
+
+      def get_preference(key)
+        load_preferences if current_user && session['preferences'].nil?
+        preferences[key]
+      end
+
+      def preference(key, default= nil, &block)
+        current = get_preference(key)
+        return current unless current.nil?
+        default = block.call if default.nil? and block_given?
+        record_preference(key, default) if default
+        default
       end
     end
   end
