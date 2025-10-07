@@ -53,7 +53,9 @@ module SinatraScoutBase
       def initiate_step(step, layout = nil, http_status = 200)
         step.clean if _update == :clean
         step.recursive_clean if _update == :recursive_clean
-        step.clean if step.recoverable_error? && _update
+        #step.clean if step.recoverable_error? && _update
+
+        return step if step.done?
 
         case _cache_type
         when :synchronous, :sync
