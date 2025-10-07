@@ -84,15 +84,26 @@ module SinatraScoutAssets
 
         update = _update == :js
 
+        minify = false
+
         Persist.persist 'all', :text, prefix: 'js', path: filename, other: {files: paths}, check: paths, update: update do
           Log.debug{ "Regenerating JS Compressed file: #{ filename }" }
-          cmd_str = "terser ".dup
-          paths.collect do |path|
-            cmd_str << "'#{path}' "
+          TmpFile.with_file nil, false do |tmp_file|
+            Open.write tmp_file do |f|
+              paths.each do |path|
+                f.write(Open.read(path) + "\n")
+              end
+            end
+            ppp Open.read tmp_file
+
+            cmd_str = "esbuild ".dup
+            cmd_str << "'#{tmp_file}' "
+            cmd_str << "--outfile='#{filename}' "
+            cmd_str << "--bundle "
+            cmd_str << "--minify " if minify
+            cmd_str << "--platform='browser' "
+            CMD.cmd(:npx, cmd_str)
           end
-          #cmd_str << "-o '#{filename}' --compress --mangle"
-          cmd_str << "-o '#{filename}' --compress --mangle"
-          CMD.cmd(:npx, cmd_str)
         end
 
         res = "<script src='/file/#{File.basename(filename)}' type='text/javascript' defer></script>"
