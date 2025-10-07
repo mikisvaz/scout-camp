@@ -2,6 +2,15 @@ scout-camp=/$PWD filter="*" {
  bin=bin {
   scout-camp
  }
+ chats=chats filter='*'{
+
+  intro
+
+  sinatra
+  unit
+
+  javascript
+ }
  lib=lib {
   scout-camp.rb
   scout=scout {
@@ -31,9 +40,7 @@ scout-camp=/$PWD filter="*" {
 
    sinatra=sinatra{
     entity.rb
-    entity.rb.save
     workflow.rb
-    workflow.rb.save
 
     base=base{
      post_processing.rb
