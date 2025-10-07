@@ -42,6 +42,11 @@ module SinatraScoutSession
     end
 
     app.helpers do
+
+      def csrf_token
+        session[:csrf] ||= SecureRandom.hex(16)
+      end
+
       def preferences
         session['preferences'] ||= {}
       end
