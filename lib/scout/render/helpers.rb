@@ -84,4 +84,9 @@ module ScoutRenderHelpers
     current_checks = @step.info[:checks] || []
     @step.path.outdated?(current_checks)
   end
+
+  def log(...)
+    return unless Step === @step
+    @step.log(...)
+  end
 end
