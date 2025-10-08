@@ -46,6 +46,7 @@ module ScoutRenderHelpers
       url = url.gsub(/(\?|&)#{param}=[^&]+/,'\1')
     end
 
+    url = url.sub(/\?&/, '?')
     url = url.sub(/&&*/, '&')
     url = url.sub(/&$/, '')
     url = url.sub(/\?$/,'')
