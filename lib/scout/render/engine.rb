@@ -17,7 +17,11 @@ module ScoutRender
       block.call *params
     else
       Log.debug "Render #{template_file}"
-      Tilt.new(template_file, :filename => template_file).render(exec_context, params, &block)
+      begin
+        Tilt.new(template_file).render(exec_context, params, &block)
+      ensure
+        exec_context.add_checks template_file if exec_context.respond_to? :add_checks
+      end
     end
   end
 
@@ -83,18 +87,20 @@ module ScoutRender
 
     step = ScoutRender.render_step(template_file, options, &block)
 
-    checks = step.info[:checks] || []
-    checks << check if check
-    checks << [template_file]
-    checks = checks.flatten.uniq
-    step.set_info :checks, checks
+    #checks = step.info[:checks] || []
+    #checks << check if check
+    #checks << [template_file]
+    #checks = checks.flatten.uniq
+    #step.set_info :checks, checks
 
     case update
     when :false, 'false', false, :wait, 'wait'
     when :true, 'true', true, :reload, 'reload'
       step.clean
     when nil
-      step.clean if (step.done? || step.error?) && step.path.outdated?(checks)
+      if checks = step.info[:checks]
+        step.clean if (step.done? || step.error?) && step.path.outdated?(checks)
+      end
     else
       step.clean if step.error? && step.recoverable_error?
       step.clean unless step.running?
