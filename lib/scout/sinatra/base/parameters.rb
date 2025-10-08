@@ -89,6 +89,10 @@ module SinatraScoutParameters
                               if param =~ /(.*)_checkbox_false$/
                                 params[$1] = false if params[$1].nil?
                                 params.delete param
+                              elsif param =~ /(.*)_upload_file$/
+                                file = params[param]
+                                params[$1] = file['tempfile'].read
+                                params[$1 + "_upload_filename"] = file['filename']
                               elsif param.to_s.start_with? '_'
                                 params.delete param
                               end
@@ -100,6 +104,28 @@ module SinatraScoutParameters
       def process_common_parameters
         settings.common_parameters.each{|name,*_| self.send(name) }
       end
+
+      def form(&block)
+        inputs = []
+        input_types = {}
+        input_descriptions = {}
+        input_defaults = {}
+        input_options = {}
+
+        self.define_singleton_method :input do |name, type=nil, description=nil, default=nil, options=nil|
+          inputs << name
+          input_types[name] = type
+          input_descriptions[name] = description
+          input_defaults[name] = default
+          input_options[name] = options
+        end
+        self.instance_exec &block
+
+        self.singleton_class.remove_method(:input)
+
+
+        render_partial 'partial/form', inputs: inputs, types: input_types, descriptions: input_descriptions, defaults: input_defaults, options: input_options 
+      end
     end
 
     app.register_common_parameter(:splat, :array)
@@ -108,6 +134,8 @@ module SinatraScoutParameters
     app.register_common_parameter(:_update, :symbol) do 
       if development? && ! _step
         :development  
+      elsif request_method != 'GET'
+        request_method
       end
     end
     app.register_common_parameter(:_cache_type, :symbol, :asynchronous)

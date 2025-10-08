@@ -177,7 +177,8 @@ module SinatraScoutBase
 
       if request_method == 'POST' && request.content_type.include?('json')
         begin
-          post_data = JSON.parse(request.body.read)
+          post_text = request.body.read
+          post_data = JSON.parse(post_text)
           params.merge!(post_data)
         rescue
           Log.exception $!
