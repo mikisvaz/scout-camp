@@ -105,7 +105,7 @@ module SinatraScoutParameters
         settings.common_parameters.each{|name,*_| self.send(name) }
       end
 
-      def form(&block)
+      def form(**kwgars, &block)
         inputs = []
         input_types = {}
         input_descriptions = {}
@@ -124,7 +124,7 @@ module SinatraScoutParameters
         self.singleton_class.remove_method(:input)
 
 
-        render_partial 'partial/form', inputs: inputs, types: input_types, descriptions: input_descriptions, defaults: input_defaults, options: input_options 
+        render_partial 'partial/form', kwgars.merge( inputs: inputs, types: input_types, descriptions: input_descriptions, defaults: input_defaults, options: input_options)
       end
     end
 

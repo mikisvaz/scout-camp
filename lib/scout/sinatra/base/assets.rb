@@ -1,36 +1,72 @@
 module SinatraScoutAssets
   def self.registered(app)
     app.helpers do
-      def recorded_js_files
-        @recorded_js_files ||= []
-      end
-
-      def recorded_css_files
-        @recorded_css_files ||= []
-      end
-
       def reset_js_css
         @recorded_js_files = []
         @recorded_css_files = []
       end
 
-
-      def record_js(file)
-        recorded_js_files << file
+      def recorded_js_files_global
+        @recorded_js_files ||= []
       end
 
-      def record_css(file)
-        recorded_css_files << file
+      def recorded_css_files_global
+        @recorded_css_files ||= []
+      end
+
+      def recorded_js_files
+        global = recorded_js_files_global
+        return global unless @step
+        global + (@step.info[:js_files] || [])
+      end
+
+      def recorded_css_files
+        global = recorded_css_files_global
+        return global unless @step
+        global + (@step.info[:css_files] || [])
+      end
+
+      def record_js_global(file)
+        if Array === file
+          recorded_js_files.concat file
+        else
+          recorded_js_files << file
+        end
+      end
+
+      def record_css_global(file)
+        if Array === file
+          recorded_css_files.concat file
+        else
+          recorded_css_files << file
+        end
+      end
+
+      def record_js(js_files)
+        return record_js_global(js_files) unless @step
+        js_files = [js_files] unless Array === js_files
+        @step.load_info
+        current_js_files = @step.info[:js_files] || []
+
+        @step.set_info :js_files, js_files - current_js_files
+      end
+
+      def record_css(css_files)
+        return record_css_global(css_files) unless @step
+        css_files = [css_files] unless Array === css_files
+        @step.load_info
+        current_css_files = @step.info[:css_files] || []
+
+        new_files = css_files - current_css_files
+        @step.set_info :css_files, new_files
       end
 
       def link_css(file)
-        #file += '.css' unless file =~ /.css$/
         file << "?_update=reload" if @debug_css
         html_tag('link', nil, :rel => 'stylesheet', :type => 'text/css', :href => file)
       end
 
       def link_js(file)
-        #file += '.js' unless file =~ /.js$/
         html_tag('script', " ", :src => file, :type => 'text/javascript')
       end
 
@@ -49,8 +85,9 @@ module SinatraScoutAssets
         end
 
         update = _update == :css
+        checks = paths.select{|p| Open.mtime(p) }
 
-        Persist.persist 'all', :text, prefix: 'css', path: filename, other: {files: paths}, check: paths, update: update do
+        Persist.persist 'all', :text, prefix: 'css', path: filename, other: {files: paths}, check: checks, update: update do
           Log.debug{ "Regenerating CSS Compressed file: #{ filename }" }
           paths.collect do |path|
             TmpFile.with_file do |tmpfile|
@@ -85,8 +122,9 @@ module SinatraScoutAssets
         update = _update == :js
 
         minify = false
+        checks = paths.select{|p| Open.mtime(p) }
 
-        Persist.persist 'all', :text, prefix: 'js', path: filename, other: {files: paths}, check: paths, update: update do
+        Persist.persist 'all', :text, prefix: 'js', path: filename, other: {files: paths}, check: checks, update: update do
           Log.debug{ "Regenerating JS Compressed file: #{ filename }" }
           TmpFile.with_file nil, false do |tmp_file|
             Open.write tmp_file do |f|
@@ -94,7 +132,6 @@ module SinatraScoutAssets
                 f.write(Open.read(path) + "\n")
               end
             end
-            ppp Open.read tmp_file
 
             cmd_str = "esbuild ".dup
             cmd_str << "'#{tmp_file}' "
