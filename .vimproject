@@ -49,6 +49,7 @@ scout-camp=/$PWD filter="*" {
      assets.rb
      headers.rb
      session.rb
+     favicon.rb
     }
     base.rb
 
