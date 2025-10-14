@@ -2,14 +2,11 @@ scout-camp=/$PWD filter="*" {
  bin=bin {
   scout-camp
  }
- chats=chats filter='*'{
-
+ chats=chats filter="*"{
   intro
-
+  javascript
   sinatra
   unit
-
-  javascript
  }
  lib=lib {
   scout-camp.rb
@@ -203,6 +200,8 @@ scout-camp=/$PWD filter="*" {
   }
   aws=aws{
    lambda_function.rb
+  }
+  views=views{
   }
  }
  test=test {
