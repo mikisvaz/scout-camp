@@ -20,7 +20,7 @@ module ScoutRender
       begin
         Tilt.new(template_file).render(exec_context, params, &block)
       ensure
-        exec_context.add_checks template_file if exec_context.respond_to? :add_checks
+        exec_context.add_checks template_file if exec_context.respond_to?(:add_checks)
       end
     end
   end
@@ -107,7 +107,7 @@ module ScoutRender
     end
 
     if run
-      step.run
+      step.run unless step.done?
     else
       step
     end

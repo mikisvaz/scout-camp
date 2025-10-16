@@ -95,22 +95,34 @@ module SinatraScoutAuth
       end
 
       def save_preferences
+        Log.debug "save #{preferences.to_json}"
         user_save(:preferences, preferences.to_json)
       end
 
       def load_preferences
         return unless user_file(:preferences).exists?
         session['preferences'] = JSON.parse(user_load(:preferences))
+        session['preferences_time'] = user_file(:preferences).mtime
+      end
+
+      def updated_preferrences?
+        return true if session['preferences_time'].nil?
+        session['preferences_time'] < user_file(:preferences).mtime
+      end
+
+      def preferences_changed
+        @preferences_changed ||= []
       end
 
       def record_preference(key, value)
+        preferences_changed << key
         preferences[key] = value
         save_preferences if current_user
         value
       end
 
       def get_preference(key)
-        load_preferences if current_user && session['preferences'].nil?
+        load_preferences if current_user && updated_preferrences?
         preferences[key]
       end
 

@@ -55,6 +55,7 @@ module SinatraScoutBase
         step.recursive_clean if _update == :recursive_clean
         #step.clean if step.recoverable_error? && _update
 
+
         return step if step.done?
 
         case _cache_type
@@ -66,6 +67,8 @@ module SinatraScoutBase
           halt http_status, html(step.exec, layout)
         end
 
+        Open.wait_for(step.path, timeout: 0.5)
+
         step.join if step.done?
 
         step
@@ -73,7 +76,10 @@ module SinatraScoutBase
 
       def serve_step(step, layout = nil, http_status = 200, &block)
         layout = _layout if layout.nil?
-        case step.status
+        status = step.status
+        step.status = :done if step.done? && ! status == :done
+        status = :done if step.done?
+        case status
         when :error, 'error'
           Log.exception step.exception if Exception === step.exception
           raise step.exception
@@ -126,7 +132,7 @@ module SinatraScoutBase
 
       def render_template(template, options = {}, &block)
         layout, http_status = IndiferentHash.process_options options, :layout, :http_status,
-          layout: _layout, http_status: 200
+          layout: _layout
         options = IndiferentHash.setup(clean_params).merge(options) if defined?(clean_params)
         options = IndiferentHash.add_defaults options,
           update: _update,
@@ -135,7 +141,7 @@ module SinatraScoutBase
 
         step = ScoutRender.render_template(template, options.merge(exec_context: self, run: false, current_user: current_user), &block)
         if String === step
-          status http_status
+          status http_status if http_status
           return html step, layout
         end
 

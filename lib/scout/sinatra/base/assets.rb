@@ -17,13 +17,13 @@ module SinatraScoutAssets
       def recorded_js_files
         global = recorded_js_files_global
         return global unless @step
-        global + (@step.info[:js_files] || [])
+        (global + (@step.info[:js_files] || [])).uniq
       end
 
       def recorded_css_files
         global = recorded_css_files_global
         return global unless @step
-        global + (@step.info[:css_files] || [])
+        (global + (@step.info[:css_files] || [])).uniq
       end
 
       def record_js_global(file)
@@ -45,20 +45,19 @@ module SinatraScoutAssets
       def record_js(js_files)
         return record_js_global(js_files) unless @step
         js_files = [js_files] unless Array === js_files
-        @step.load_info
         current_js_files = @step.info[:js_files] || []
 
-        @step.set_info :js_files, js_files - current_js_files
+        new_files = js_files - current_js_files
+        @step.set_info :js_files, new_files if new_files.any?
       end
 
       def record_css(css_files)
         return record_css_global(css_files) unless @step
         css_files = [css_files] unless Array === css_files
-        @step.load_info
         current_css_files = @step.info[:css_files] || []
 
         new_files = css_files - current_css_files
-        @step.set_info :css_files, new_files
+        @step.set_info :css_files, new_files if new_files.any?
       end
 
       def link_css(file)
@@ -68,6 +67,13 @@ module SinatraScoutAssets
 
       def link_js(file)
         html_tag('script', " ", :src => file, :type => 'text/javascript')
+      end
+
+      def purge_paths(paths)
+        @served_paths ||= []
+        new = paths - @served_paths
+        @served_paths.concat new
+        new
       end
 
       def serve_css
@@ -82,7 +88,9 @@ module SinatraScoutAssets
             path = ScoutRender.find_js("public/#{file}") unless path.exists?
           end
           path
-        end
+        end.uniq
+
+        paths = purge_paths paths
 
         update = _update == :css
         checks = paths.select{|p| Open.mtime(p) }
@@ -100,8 +108,6 @@ module SinatraScoutAssets
 
         res = "<link href='/file/#{File.basename(filename)}' rel='stylesheet' type='text/css'/>"
 
-        recorded_css_files.clear
-
         res
       end
 
@@ -117,7 +123,9 @@ module SinatraScoutAssets
             path = ScoutRender.find_js("public/#{file}") unless path.exists?
           end
           path
-        end
+        end.uniq
+
+        paths = purge_paths paths
 
         update = _update == :js
 
@@ -125,7 +133,7 @@ module SinatraScoutAssets
         checks = paths.select{|p| Open.mtime(p) }
 
         Persist.persist 'all', :text, prefix: 'js', path: filename, other: {files: paths}, check: checks, update: update do
-          Log.debug{ "Regenerating JS Compressed file: #{ filename }" }
+          Log.debug{ "Regenerating JS Compressed file: #{ filename }, from: #{Log.fingerprint paths}" }
           TmpFile.with_file nil, false do |tmp_file|
             Open.write tmp_file do |f|
               paths.each do |path|
@@ -136,7 +144,7 @@ module SinatraScoutAssets
             cmd_str = "esbuild ".dup
             cmd_str << "'#{tmp_file}' "
             cmd_str << "--outfile='#{filename}' "
-            cmd_str << "--bundle "
+            cmd_str << "--bundle " if paths.length > 1
             cmd_str << "--minify " if minify
             cmd_str << "--platform='browser' "
             CMD.cmd(:npx, cmd_str)

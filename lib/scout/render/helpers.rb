@@ -72,10 +72,10 @@ module ScoutRenderHelpers
   def add_checks(checks)
     return unless Step === @step
     checks = [checks] unless Array === checks
-    @step.load_info
     current_checks = @step.info[:checks] || []
 
-    @step.set_info :checks, checks - current_checks
+    new_files = checks - current_checks
+    @step.set_info :checks, new_files if new_files.any?
   end
 
   def outdated?
