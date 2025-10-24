@@ -95,7 +95,7 @@ module SinatraScoutAssets
         update = _update == :css
         checks = paths.select{|p| Open.mtime(p) }
 
-        Persist.persist 'all', :text, prefix: 'css', path: filename, other: {files: paths}, check: checks, update: update do
+        Persist.persist 'all', :text, prefix: 'css', path: filename, other: {files: paths}, check: checks, update: update, no_load: true do
           Log.debug{ "Regenerating CSS Compressed file: #{ filename }" }
           paths.collect do |path|
             TmpFile.with_file do |tmpfile|
@@ -132,7 +132,7 @@ module SinatraScoutAssets
         minify = false
         checks = paths.select{|p| Open.mtime(p) }
 
-        Persist.persist 'all', :text, prefix: 'js', path: filename, other: {files: paths}, check: checks, update: update do
+        Persist.persist 'all', :text, prefix: 'js', path: filename, other: {files: paths}, check: checks, update: update, no_load: true do
           Log.debug{ "Regenerating JS Compressed file: #{ filename }, from: #{Log.fingerprint paths}" }
           TmpFile.with_file nil, false do |tmp_file|
             Open.write tmp_file do |f|

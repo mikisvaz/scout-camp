@@ -13,12 +13,28 @@ module SinatraScoutAuth
         prompt: 'select_account',
         scope: 'email',
         setup: lambda { |env|
+          script_name = env['HTTP_SCRIPT_NAME']
+          if script_name
+            referer = env['rack.session']['return_to']
+			uri = URI.parse(referer)
+			# Keep only scheme + host + (optional port)
+			base = "#{uri.scheme}://#{uri.host}"
+			base += ":#{uri.port}" if uri.port && ![80, 443].include?(uri.port)
+
+			# Construct full redirect URI
+			redirect_uri = "#{base}#{script_name}/auth/google_oauth2/callback"
+
+            strategy = env['omniauth.strategy']
+
+            strategy.options[:redirect_uri] = redirect_uri
+          end
+
           puts "OmniAuth session: #{env['rack.session'].inspect}"
         }
     end
 
     app.get "/auth/login" do
-      session[:return_to] = request.referer || "/"
+      session[:return_to] = to(request.referer || "/")
 
       render_or 'auth/login', <<~HTML
           <form method='get' action='/auth/google_oauth2'>

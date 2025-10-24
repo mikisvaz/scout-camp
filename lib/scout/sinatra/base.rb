@@ -40,9 +40,13 @@ module SinatraScoutBase
         json_halt 200, object
       end
 
+      def charset_meta
+        '<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">'
+      end
+
       def html(content, layout = false, extension: %w(slim haml erb))
-        return content unless _layout 
-        return content unless layout 
+        return charset_meta + content unless _layout
+        return charset_meta + content unless layout
         layout = 'layout' if TrueClass === layout
         layout_file = ScoutRender.find_resource('layout', extension: extension )
         ScoutRender.render(layout_file, exec_context: self) do
