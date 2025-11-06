@@ -33,6 +33,10 @@ module SinatraScoutAuth
         }
     end
 
+    app.before do
+      load_preferences
+    end
+
     app.get "/auth/login" do
       session[:return_to] = to(request.referer || "/")
 
@@ -118,12 +122,12 @@ module SinatraScoutAuth
       def load_preferences
         return unless user_file(:preferences).exists?
         session['preferences'] = JSON.parse(user_load(:preferences))
-        session['preferences_time'] = user_file(:preferences).mtime
+        session['preferences_time'] = Open.mtime(user_file(:preferences))
       end
 
       def updated_preferrences?
         return true if session['preferences_time'].nil?
-        session['preferences_time'] < user_file(:preferences).mtime
+        session['preferences_time'] < Open.mtime(user_file(:preferences))
       end
 
       def preferences_changed
