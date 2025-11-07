@@ -71,7 +71,8 @@ job = wf.job(:#{task_name}, "#{clean_name}");
   def orchestrate_batch
     bundle_files = offsite_job_ssh <<~EOF
     require 'rbbt/hpc'
-    Workflow::Scheduler.produce(job)
+    rules = Workflow::Orchestrator.load_rules_for_job(job)
+    Workflow::Scheduler.produce(job, rules)
     job.join
     job.bundle_files
     EOF
@@ -81,14 +82,15 @@ job = wf.job(:#{task_name}, "#{clean_name}");
 
   def exec
     bundle_files = offsite_job_ssh <<~EOF
-    job.run
+    Workflow.produce(job)
+    job.join
     job.bundle_files
     EOF
     SSHLine.sync(bundle_files, source: server)
     self.load
   end
 
-  def run
+  def run(...)
     if batch
       orchestrate_batch
     else
