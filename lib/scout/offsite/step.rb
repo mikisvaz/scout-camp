@@ -5,7 +5,7 @@ require 'scout/workflow/step'
 module OffsiteStep
 
   extend Annotation
-  annotation :server, :workflow_name, :clean_id, :slurm
+  annotation :server, :workflow_name, :clean_id, :batch
 
   def inputs_directory
     @inputs_directory ||= begin
@@ -68,18 +68,16 @@ job = wf.job(:#{task_name}, "#{clean_name}");
     status == :done
   end
 
-  def orchestrate_slurm
+  def orchestrate_batch
     bundle_files = offsite_job_ssh <<~EOF
     require 'rbbt/hpc'
-    HPC::BATCH_MODULE = HPC.batch_system "SLURM"
-    HPC::BATCH_MODULE.orchestrate_job(job, {})
+    Workflow::Scheduler.produce(job)
     job.join
     job.bundle_files
     EOF
     SSHLine.sync(bundle_files, source: server)
     self.load
   end
-
 
   def exec
     bundle_files = offsite_job_ssh <<~EOF
@@ -91,8 +89,8 @@ job = wf.job(:#{task_name}, "#{clean_name}");
   end
 
   def run
-    if slurm
-      orchestrate_slurm
+    if batch
+      orchestrate_batch
     else
       exec
     end
