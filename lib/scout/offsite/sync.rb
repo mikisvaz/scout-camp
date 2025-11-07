@@ -11,17 +11,23 @@ class SSHLine
       relocated.identify
     end
 
-    located, identified = SSHLine.scout server, <<-EOF
+    script = <<-EOF
 map = #{map.nil? ? "nil" : ":#{map}" }
 paths = #{paths}
 located = paths.collect{|p| Path.setup(p).find(map) }
-if #{source}
-  located = located.collect{|p| p.exists? ? p : nil }
-end
+    EOF
+
+    script += <<-EOF if source
+located = located.collect{|p| p.exists? ? p : nil }
+    EOF
+
+    script += <<-EOF
 identified = paths.collect{|p| Resource.identify(p) if p }
 located = located.each{|path| path << "/" if path && path.directory? && ! path.end_with?('/') }
 [located, identified]
     EOF
+
+    located, identified = SSHLine.scout server, script
 
     identified.zip(paths).each do |ip,p|
       ip.pkgdir = p.pkgdir if Path === p
@@ -42,6 +48,9 @@ located = located.each{|path| path << "/" if path && path.directory? && ! path.e
     else
       Open.mkdir(File.dirname(target_path))
     end
+
+    source_path = File.expand_path(source_path) unless source
+    target_path = File.expand_path(target_path) unless target
 
     cmd = 'rsync '
     cmd << rsync_args

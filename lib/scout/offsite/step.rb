@@ -30,6 +30,13 @@ module OffsiteStep
 wf = Workflow.require_workflow "#{workflow_name}";
     EOF
 
+    rec_dependencies.collect{|d| d.workflow }.compact.uniq.each do |other_workflow|
+      next if workflow_name == other_workflow.to_s
+      parts << <<~EOF.strip
+Workflow.require_workflow "#{other_workflow}" rescue nil;
+      EOF
+    end
+
     if inputs_directory
       parts << <<~EOF.strip
 job = wf.job(:#{task_name}, "#{clean_name}", :load_inputs => "#{inputs_directory}");
@@ -77,24 +84,24 @@ job = wf.job(:#{task_name}, "#{clean_name}");
     job.bundle_files
     EOF
     SSHLine.sync(bundle_files, source: server)
-    self.load
   end
 
-  def exec
+  def exec(noload)
     bundle_files = offsite_job_ssh <<~EOF
     Workflow.produce(job)
     job.join
     job.bundle_files
     EOF
     SSHLine.sync(bundle_files, source: server)
-    self.load
+    noload ? self.path : self.load
   end
 
-  def run(...)
+  def run(noload=false)
     if batch
       orchestrate_batch
+      noload ? self.path : self.load
     else
-      exec
+      exec(noload)
     end
   end
 end
