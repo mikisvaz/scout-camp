@@ -2,6 +2,14 @@ scout-camp=/$PWD filter="*" {
  bin=bin {
   scout-camp
  }
+ chats=chats filter="*"{
+  auth
+
+  intro
+  javascript
+  sinatra
+  unit
+ }
  lib=lib {
   scout-camp.rb
   scout=scout {
@@ -28,7 +36,30 @@ scout-camp=/$PWD filter="*" {
     engine.rb
    }
    render.rb
+   sinatra=sinatra{
+    entity.rb
+    workflow.rb
 
+    base=base{
+     post_processing.rb
+     parameters.rb
+
+     helpers.rb
+     assets.rb
+     headers.rb
+     session.rb
+     favicon.rb
+    }
+    base.rb
+
+    tool.rb
+
+    fragment.rb
+    auth.rb
+    htmx.rb
+    finder.rb
+    knowledge_base.rb
+   }
   }
  }
  scout_commands=scout_commands {
@@ -173,6 +204,8 @@ scout-camp=/$PWD filter="*" {
   }
   aws=aws{
    lambda_function.rb
+  }
+  views=views{
   }
  }
  test=test {

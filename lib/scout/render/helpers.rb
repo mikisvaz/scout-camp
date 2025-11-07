@@ -46,6 +46,7 @@ module ScoutRenderHelpers
       url = url.gsub(/(\?|&)#{param}=[^&]+/,'\1')
     end
 
+    url = url.sub(/\?&/, '?')
     url = url.sub(/&&*/, '&')
     url = url.sub(/&$/, '')
     url = url.sub(/\?$/,'')
@@ -70,9 +71,11 @@ module ScoutRenderHelpers
 
   def add_checks(checks)
     return unless Step === @step
+    checks = [checks] unless Array === checks
     current_checks = @step.info[:checks] || []
-    current_checks += checks
-    @step.set_info :checks, current_checks.uniq
+
+    new_files = checks - current_checks
+    @step.set_info :checks, new_files if new_files.any?
   end
 
   def outdated?
@@ -80,5 +83,10 @@ module ScoutRenderHelpers
     return false unless @step.path.exists?
     current_checks = @step.info[:checks] || []
     @step.path.outdated?(current_checks)
+  end
+
+  def log(...)
+    return unless Step === @step
+    @step.log(...)
   end
 end

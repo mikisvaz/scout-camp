@@ -4,9 +4,13 @@ module ScoutRender
 
   self.subdir = 'share/views'
 
-  def self.find_resource(name, extension: %(slim erb haml)  )
+  def self.find_resource(name, extension: %w(slim erb haml)  )
     return name.find_with_extension(extension) if Path === name && name.find_with_extension(extension).exists?
     ScoutRender.root[name].find_with_extension(extension)
+  end
+
+  def self.exists?(name, extension: %w(slim erb haml)  )
+    find_resource(name, extension: extension).exists?
   end
 
   def self.find_haml(name)
@@ -20,6 +24,11 @@ module ScoutRender
   def self.find_js(name)
     find_resource(name, extension: 'js')
   end
+
+  def self.find_css(name)
+    find_resource(name, extension: 'css')
+  end
+
 
   def self.find_sass(name)
     find_resource(name, extension: 'sass')
