@@ -43,6 +43,10 @@ Juwelier::Tasks.new do |gem|
 
   gem.add_runtime_dependency 'scout-essentials', '>= 0'
   gem.add_runtime_dependency 'aws-sdk-s3', '>= 0'
+  gem.add_runtime_dependency 'sinatra', '>= 0'
+  gem.add_runtime_dependency 'omniauth', '>= 0'
+  gem.add_runtime_dependency 'mimemagic', '>= 0'
+  gem.add_runtime_dependency 'omniauth-google-oauth2', '>= 0'
 end
 Juwelier::RubygemsDotOrgTasks.new
 require 'rake/testtask'
