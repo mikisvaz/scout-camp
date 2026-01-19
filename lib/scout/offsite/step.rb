@@ -72,7 +72,7 @@ job = wf.job(:#{task_name}, "#{clean_name}");
   end
 
   def done?
-    status == :done
+    status == :done || Open.exists?(path)
   end
 
   def orchestrate_batch
@@ -97,11 +97,15 @@ job = wf.job(:#{task_name}, "#{clean_name}");
   end
 
   def run(noload=false)
-    if batch
-      orchestrate_batch
-      noload ? self.path : self.load
-    else
-      exec(noload)
+    begin
+      if batch
+        orchestrate_batch
+        noload ? self.path : self.load
+      else
+        exec(noload)
+      end
+    ensure
+      @info = nil
     end
   end
 end
