@@ -13,6 +13,7 @@ module OffsiteStep
                               file = ".scout/tmp/step_inputs/#{workflow}/#{task_name}/#{name}"
                               TmpFile.with_path do |inputs_dir|
                                 save_inputs(inputs_dir)
+                                inputs_dir = inputs_dir + '/' unless inputs_dir.ends_with? '/'
                                 SSHLine.rsync(inputs_dir, file, target: server, directory: inputs_dir.directory?)
                               end
                               file
@@ -86,13 +87,13 @@ job = wf.job(:#{task_name}, "#{clean_name}");
     SSHLine.sync(bundle_files, source: server)
   end
 
-  def exec(noload)
+  def exec(noload = false)
     bundle_files = offsite_job_ssh <<~EOF
     Workflow.produce(job)
     job.join
     job.bundle_files
     EOF
-    SSHLine.sync(bundle_files, source: server)
+    SSHLine.sync(bundle_files, source: server, rsync_args: '-vztHP --copy-unsafe-links --omit-dir-times ')
     noload ? self.path : self.load
   end
 

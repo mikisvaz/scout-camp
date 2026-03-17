@@ -36,13 +36,14 @@ located = located.each{|path| path << "/" if path && path.directory? && ! path.e
     [located, identified]
   end
 
-  def self.rsync(source_path, target_path, directory: false, source: nil, target: nil, dry_run: false, hard_link: false)
-    rsync_args = "-avztHP --copy-unsafe-links --omit-dir-times "
+  def self.rsync(source_path, target_path, directory: false, source: nil, target: nil, dry_run: false, hard_link: false, rsync_args: nil)
+    rsync_args = "-avztHP --copy-unsafe-links --omit-dir-times " if rsync_args.nil?
 
     rsync_args << "--link-dest '#{source_path}' " if hard_link && ! source
 
     source_path = source_path + "/" if directory && ! source_path.end_with?("/")
     target_path = target_path + "/" if directory && ! target_path.end_with?("/")
+
     if target
       SSHLine.mkdir target, File.dirname(target_path)
     else
@@ -51,6 +52,9 @@ located = located.each{|path| path << "/" if path && path.directory? && ! path.e
 
     source_path = File.expand_path(source_path) unless source
     target_path = File.expand_path(target_path) unless target
+
+    source_path = source_path + "/" if directory && ! source_path.end_with?("/")
+    target_path = target_path + "/" if directory && ! target_path.end_with?("/")
 
     cmd = 'rsync '
     cmd << rsync_args
